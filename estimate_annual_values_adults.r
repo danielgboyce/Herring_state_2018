@@ -1804,6 +1804,27 @@ names(dat)<-c('year','phyt.mn.insitu','phyt.mn.me','phyt.mn.mo','phyt.mn.sw')
 andata<-c(andata,list(dat))
 
 
+
+#ADDS AMO AND AO
+setwd(datadir1)
+amo<-read.table('amo.txt',sep='',col.names=c('year','jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'),na.strings=c(-99.9900,-99.99))
+amo<-amo %>% gather(var,y,-year)
+amo<-subset(amo,y> -80 & var %in% c('aug','sep','oct','nov'))
+amo<-data.frame(year=sort(unique(amo$year)),
+                amo=tapply(amo$y,amo$year,mean))
+
+ao<-read.table('ao.txt',sep='',header=FALSE,col.names=c('year','jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'),skip=1)
+ao<-ao %>% gather(var,y,-year)
+ao<-subset(ao,y> -80 & var %in% c('aug','sep','oct','nov'))
+ao<-data.frame(year=sort(unique(ao$year)),
+                ao=tapply(ao$y,ao$year,mean))
+amo<-merge(amo,ao,by=c('year'),all=TRUE)
+#save(amo,file='amo.RData')
+
+#ACCUMULATOR
+andata<-c(andata,list(amo))
+
+
 ###################################
 #COMBINE ALL INTO A SINGLE DATABASE
 data<-Reduce(function(x, y) merge(x, y, by=c('year'),all=TRUE), andata)#COMBINE
@@ -2307,7 +2328,6 @@ rownames(data)<-data$year
 setwd(datadir)
 save(data,file='SPERA_andata_new.RData')
 #load('SPERA_andata_new.RData')
-
 d<-subset(data,select=c('year','asl'))
 
 

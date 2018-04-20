@@ -101,32 +101,6 @@ buf1 <- gBuffer(pts0, width=.03, byid=TRUE)
 plg <- gUnaryUnion(buf1)
 plg<-erase(plg,coast.mc)
 
-library(marmap)
-xlm<-c(-68,-58.8)
-ylm<-c(41,46.5)
-atl<-getNOAA.bathy(lon1=xlm[1],lon2=xlm[2],lat1=ylm[1],lat2=ylm[2], resolution=4)
-
-setwd(figsdir)
-pdf('sampling_spatial_domains_lrv.pdf.pdf',height=4,width=7)
-par(mfrow=c(1,3),mar=c(0,0,0,0),oma=c(4,1,4,1))
-cl3<-'green3'
-xlm<-c(-68.2,-58.5)
-ylm<-c(41.5,46.5)
-lw<-.5
-mpcl<-'gray80'
-map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
-plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
-plot(plglrv,add=TRUE,col=alpha(cl3,.4),border=cl3,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
-plot(plg,add=TRUE,col=alpha(cl3,.7),xlim=xlm,ylim=ylm,border=NA)
-box()
-
-map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
-plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
-plot(plglrv,add=TRUE,col=alpha(cl3,.4),border=cl3,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
-plot(plg,add=TRUE,col=alpha(cl3,.7),xlim=xlm,ylim=ylm,border=NA)
-box()
-dev.off()
-
 #GETS MEAN NUMBER PER CELL
 f<-function(d){
     return(data.frame(meanno=mean(d$stdno)))
@@ -471,37 +445,23 @@ writePolyShape(plgdf70,'plgdf70.shp')
 
 
 
-setwd(figsdir)
-pdf('herlarv_abund_interp_map_spera.pdf',width=6,height=10)
-grid.arrange(p185,p180,p175,ncol=1)
-dev.off()
-
-setwd(datadir)
-sim1<-read.csv('german_bank_track.csv',header=FALSE,col.names=c('date','time','lon','lat','depth'))
-sim1<-subset(sim1,is.na(lon)==FALSE & lon!='Top')
-sim1$lon<-as.numeric(as.character(sim1$lon))
-sim1$lat<-as.numeric(as.character(sim1$lat))
-sim1<-subset(sim1,is.na(lat)==FALSE)
-
-sim2<-read.csv('scotts_bay_track.csv',header=FALSE,col.names=c('date','time','lon','lat','depth'))
-sim2<-subset(sim2,is.na(lon)==FALSE & lon!='Top')
-sim2$lon<-as.numeric(as.character(sim2$lon))
-sim2$lat<-as.numeric(as.character(sim2$lat))
-sim2<-subset(sim2,is.na(lat)==FALSE)
 
 
 
 setwd(figsdir)
 pdf('herlarv__webd_map_spera.pdf',width=6,height=5)
 ggplot()+
-geom_point(aes(lon,lat),data=sim1,col='green',alpha=.15,size=.5)+
-geom_point(aes(lon,lat),data=sim2,col='purple',alpha=.15,size=.5)+
+geom_raster(aes(lon,lat,fill=y),data=sim1,alpha=1)+
+scale_fill_gradient(low='palegreen',high='forestgreen')+
+#geom_raster(aes(lon,lat,fill=y),data=sim2,alpha=1)+
+#scale_fill_gradient(low='lightblue',high='darkblue')+
 geom_polygon(aes(long,lat, group=group), fill="grey65", data=coast.mc)+
-theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),legend.position='right',plot.background=element_blank(),axis.line = element_line(color = 'black'), legend.key.size =  unit(0.15, "in"),legend.text=element_text(size=6),plot.background = element_rect(fill = 'green', colour = 'red'))+
-scale_x_continuous(expand=c(0,0),breaks=seq(-70,-62,1),labels=as.character(seq(-70,-62,1)),limits=NA)+
+theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),legend.position=c(.9,.2),plot.background=element_blank(),axis.line = element_line(color = 'black'), legend.key.size =  unit(0.15, "in"),legend.text=element_text(size=6))+
+scale_x_continuous(expand=c(0,0),breaks=seq(-70,-60,1),labels=as.character(seq(-70,-60,1)),limits=NA)+
 scale_y_continuous(expand=c(0,0),breaks=seq(43,46,1),labels=as.character(seq(43,46,1)),limits=NA)+
 coord_equal()+
-coord_cartesian(ylim=c(42.75,max(adat$clatd)),xlim=c(-68,-64))+
+#coord_cartesian(ylim=c(42.75,max(adat$clatd)),xlim=c(-68,-64))+
+coord_cartesian(ylim=c(42.7,46),xlim=c(-68,-60))+
     xlab('')+
     ylab('')
 

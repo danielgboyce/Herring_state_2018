@@ -1,0 +1,312 @@
+---
+title: 'Supplementary Information: Herring state'
+author: "Daniel Boyce"
+date: "April 19, 2018"
+output: pdf_document
+fig_caption: yes
+keep_tex: yes
+header-includes: \usepackage{float}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r, include=FALSE}
+#READS IN DATA NECESSARY TO PRODUCE FIGURES; FORMATTED IN SEPARATE SCRIPT TO REDUCE TIME IN EACH RMARKDOWN KNITR
+library(rcompanion)
+library(ellipse)
+library(RColorBrewer)
+library(DataCombine)
+library(xts)
+library(dlm)
+library(maptools)
+library(akima)
+library(segmented)
+library(splines)
+library(strucchange)
+library(data.table)
+library(reshape2)
+library(gplots)
+library(ggplot2)
+library(forecast)
+library(raster)
+library(fields)
+library(gridExtra)
+library(colorRamps)
+library(mapdata)
+library(scales)
+library(MASS)
+library(mgcv)
+library(maps)
+library(plyr)
+library(plotrix)
+library(lubridate)
+library(fossil)
+library(rgdal)
+library(car)
+library(factoextra)
+library(tidyr)
+library(moments)
+library(marmap)
+library(rgeos)
+
+ggplot <- function(...) { ggplot2::ggplot(...) + theme_bw() }
+
+mcrt<-"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+coast<-readOGR('N://data/shapefiles/naturalearthdata_ne_10m_land_poly',layer='ne_10m_land')#works for Alfcoast<-fortify(coast)
+coast.mc<-crop(coast,extent(-180,180,-90,90),proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+fcoast.mc<-fortify(coast.mc)
+
+setwd('C:/Users/sailfish/Documents/aalldocuments/literature/research/active/SPERA/code/analysis/Herring_state_2018/SI/SI_data')
+load('plga.RData')
+load('plgj2.RData')
+load('atl.RData')
+load('plglrv1.RData')
+load('plglrv.RData')
+load('adat.RData')
+load('sim1.RData')
+load('sim2.RData')
+load('dats.RData')
+```
+
+
+```{r fs1, message=FALSE,echo=FALSE,results='hide',fig.width=7,fig.height=7,fig.cap="Figure S1 | Spatial domain of survey observations."}
+par(mfrow=c(1,3),mar=c(0,0,0,0),oma=c(0,0,0,0))
+cl1<-'firebrick3'
+cl2<-'dodgerblue3'
+cl3<-'green3'
+xlm<-c(-68,-58.8)
+ylm<-c(41,46.5)
+lw<-.5
+mpcl<-'gray80'
+###########################
+map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
+plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
+plot(plga,add=TRUE,col=alpha(cl1,.4),border=cl1,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
+#POLYGONS CORRESTPOND TO ACOUSTIC SURVEY AREAS
+polygon(x=c(-65.2,-64.84,-64.68,-65.2,-65.2),y=c(45.17,45.31,45.21,45,45.17),col=alpha('darkred',1),border=NA,lwd=1)
+polygon(x=c(-66.37,-66.21,-66.21,-66.37,-66.37),y=c(44.01,44.01,43.85,43.85,44.01),col=alpha('darkred',1),border=NA,lwd=1)
+polygon(x=c(-65.52,-65.74,-65.74,-65.52,-65.52),y=c(43.56,43.56,43.23,43.23,43.56),col=alpha('darkred',1),border=NA,lwd=1)
+box()
+map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
+plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
+plot(plgj2,add=TRUE,col=alpha(cl2,.4),border=cl2,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
+box()
+
+mpcl<-'gray80'
+map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
+plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
+plot(plglrv,add=TRUE,col=alpha(cl3,.4),border=cl3,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
+plot(plglrv1,add=TRUE,col=alpha(cl3,.7),xlim=xlm,ylim=ylm,border=NA)
+box()
+```
+
+**Figure S1 |** Spatial domain of survey observations.
+
+
+
+
+```{r fs2, message=FALSE,echo=FALSE,results='hide',fig.keep='all',fig.width=9,fig.height=3.5,fig.cap="\\label{fig:fs2}Figure S2 | Spatial domain of herring larval retention."}
+#MAPS OF LARVAL DISTRIBUTION AND WEBDROGUE PARTICLE TRACKING SIMULATIONS
+a<-adat
+#SOME NONSENSE TO GET THE COLOUR SCALE RIGHT
+aa<-data.frame(p=seq((min(adat$p,na.rm=TRUE)),max(abs(adat$p),na.rm=TRUE),length.out=100))
+a<-rbind.fill(a,aa)
+
+n<-20
+brks<-seq(min(a$p,na.rm=TRUE)-.01,max(abs(a$p),na.rm=TRUE)+.01,length.out=n)
+brks2<-round(seq(min(a$p,na.rm=TRUE)+.01,max(abs(a$p),na.rm=TRUE)+.01,length.out=n),digits=2)
+a$ycat<-cut(a$p,breaks=brks)
+lbls<-sort(unique(a$ycat))
+lbls2<-sort(unique(cut(a$p,breaks=brks2)))
+cls<-matlab.like(length(lbls))
+
+larvemp<-a
+
+#EMPIRICAL DISTRIBUTION
+p1<-ggplot()+
+geom_tile(data=a, aes(x=clond, y=clatd,fill=ycat))+
+scale_fill_manual(breaks=as.character(lbls),values=cls,labels=lbls2,na.value="transparent",guide=guide_legend(title=paste('larvae')))+
+scale_alpha(guide = 'none')+
+geom_polygon(aes(long,lat, group=group), fill="grey65", data=coast.mc)+
+theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),legend.position=c(.9,.3),plot.background=element_blank(),axis.line = element_line(color = 'black'), legend.key.size =  unit(0.07, "in"),legend.text=element_text(size=6))+
+scale_x_continuous(expand=c(0,0),breaks=seq(-69,-60,1),labels=as.character(seq(-69,-60,1)),limits=NA)+
+scale_y_continuous(expand=c(0,0),breaks=seq(42.5,46,1),labels=as.character(seq(42.5,46,1)),limits=NA)+
+coord_equal()+
+coord_cartesian(ylim=c(42.5,max(adat$clatd)),xlim=c(-69,-60))+
+    xlab('')+
+    ylab('')
+
+#WEBDROGUE PARTICLE TRACKS
+p2<-ggplot()+
+geom_raster(aes(lon,lat,fill=y),data=sim1,alpha=1)+
+scale_fill_gradient(low='palegreen',high='forestgreen')+
+geom_polygon(aes(long,lat, group=group), fill="grey65", data=coast.mc)+
+theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),legend.position=c(.9,.2),plot.background=element_blank(),axis.line = element_line(color = 'black'), legend.key.size =  unit(0.15, "in"),legend.text=element_text(size=6))+
+scale_x_continuous(expand=c(0,0),breaks=seq(-69,-60,1),labels=as.character(seq(-69,-60,1)),limits=NA)+
+scale_y_continuous(expand=c(0,0),breaks=seq(42.5,46,1),labels=as.character(seq(42.5,46,1)),limits=NA)+
+coord_equal()+
+coord_cartesian(ylim=c(42.5,max(adat$clatd)),xlim=c(-69,-60))+
+    xlab('')+
+    ylab('')
+
+invisible(grid.arrange(p1,p2,ncol=2))
+```
+
+
+
+```{r fs3, message=FALSE,echo=FALSE,results='hide',fig.keep='all',fig.width=8,fig.height=13,fig.cap="\\label{fig:fs3}Figure S3 | Spatial domain of herring larval retention."}
+
+f<-function(d){
+  mod<-lm(y~year,data=d)
+  s<-summary(mod)
+  return(data.frame(b=s$coef[2,1]))
+}
+od<-ddply(dats,.(var),.fun=f)
+
+#COLOR SCHEME
+od$bc<-cut(od$b,breaks=seq(-.081,.081,length.out=21))
+rdat<-data.frame(x=seq(-max(abs(od$b)),max(abs(od$b)),length.out=10000))
+rdat$bc<-cut(rdat$x,breaks=seq(-.081,.081,length.out=21))
+rdat<-unique(subset(rdat,select=c('bc')))
+#cl<-colorRampPalette(c(blue2red(9),'darkred'))
+cl<-colorRampPalette(c('magenta4',blue2red(9),'red3','darkred'))
+rdat$cl<-cl(20)
+od<-merge(od,rdat,by=c('bc'),all.x=TRUE,all.y=FALSE)
+
+dats<-merge(dats,od,by=c('var'),all.x=TRUE,all.y=FALSE)
+
+od<-od[order(od$b),]
+
+par(mfrow=c(9,2),mar=c(.5,1,0,0),oma=c(4,4,1,4))
+
+dats$segtrue<-ifelse(dats$var%in% c('herjuv.fmass.rv','her.ajrat.rv'),FALSE,TRUE)
+#dats$segtrue<-TRUE
+
+par(mfrow=c(9,2),mar=c(.5,1,0,0),oma=c(4,4,1,4))
+vr<-od$var
+l<-list()
+for(i in 1:length(vr)){
+  d<-subset(dats,var==vr[i])
+  d<-na.omit(d)
+  #CHARACTERIZE TRENDS
+  if(length(unique(d$year))<=10){dff<-4
+  } else {dff<-5
+  }
+  bp<-floor(mean(d$year))
+  modl<-lm(y~year,data=d)
+  m<-breakpoints(y~year,data=d,h=3,breaks=1)
+  modst<-lm(y~breakfactor(m,breaks=length(unique(m$breakpoints))),data=d)
+  modnl<-lm(y~bs(year,degree=3,df=dff),data=d)
+  if(unique(d$segtrue)==TRUE){
+    modseg<-segmented(modl,seg.Z = ~year,psi=bp,control=seg.control(it.max=200))
+    dt<-data.frame(AIC(modl,modnl,modseg,modst))
+  } else {rm(modseg)
+    dt<-data.frame(AIC(modl,modnl,modst))
+  }
+  names(dt)<-ifelse(names(dt) %in% c('BIC'),'AIC',names(dt))
+  dt$md<-rownames(dt)
+  dt$AIC<-ifelse(dt$md=='modnl',dt$AIC+4,dt$AIC)
+  dt$AIC<-ifelse(dt$md=='modst',dt$AIC,dt$AIC)
+  dt$AIC<-ifelse(dt$md=='modseg',dt$AIC-2,dt$AIC)
+  dt$AIC<-ifelse(dt$md=='modl',dt$AIC,dt$AIC)
+  dt<-subset(dt,AIC==min(dt$AIC))
+  mtype<-dt$md
+  
+  if(dt$md=='modnl'){
+    modl<-modnl
+    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
+    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
+  } else if (dt$md=='modseg'){
+    modl<-modseg
+    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
+    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
+  } else if (dt$md=='modst'){
+    modl<-modst
+    d2<-data.frame(year=sort(unique(d$year)))
+    d3<-data.frame(year=sort(unique(d$year)))
+  } else {
+    modl<-modl
+    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
+    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
+  }
+  
+  p<-predict(modl,newdata=d3,se.fit=TRUE,type='response')
+  d3$p<-p$fit
+  d3$se<-p$se.fit
+  d3$upr<-d3$p+(1.96*d3$se)
+  d3$lwr<-d3$p-(1.96*d3$se)
+  
+  s<-summary(modl)
+  r2<-round(s$r.squared,digits=2)
+  p<-predict(modl,newdata=d2,se.fit=TRUE,type='response')
+  d2$p<-p$fit
+  d2$se<-p$se.fit
+  d2$upr<-d2$p+(1.96*d2$se)
+  d2$lwr<-d2$p-(1.96*d2$se)
+  ylm<-c(min(c(d$y,d2$lwr)),max(c(d$y,d2$upr)))
+  
+  ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
+  plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE)
+  polygon(c(d2$year,d2$year[length(d2$year):1]),c(d2$upr,d2$lwr[length(d2$lwr):1]),col=alpha(as.character(unique(d$cl)),.3),border=NA)
+  abline(h=0,col='black',lty=2,lwd=1)
+  points(d$year,d$y,col=alpha(as.character(unique(d$cl)),.3),cex=1.5,pch=16)
+  axis(2,at=ylm,las=1,cex.axis=1,lwd=1)
+  if(unique(d$var) %in% c('her.totwgt.rv','her.georng')){
+    axis(1,seq(1965,2015,5),labels=FALSE,cex.axis=1,lwd=1)
+    axis(1,seq(1965,2015,10),cex.axis=1,lwd=1)
+  } else NULL
+  lines(d2$year,d2$p,col=as.character(unique(d$cl)),lwd=2)
+  s<-summary(modl)
+  r2<-round(s$r.squared,digits=2)
+  legend('topleft',gsub(' ','',paste(unique(d$var),'=',r2)),bty='n',cex=.75)
+  d2$year<-round(d2$year,digits=0)
+  dout<-d3
+  dout$chng<-dout$p[1]-dout$p[length(dout$p)]
+  dout$var<-vr[i]
+  
+  #GET BREAKPOINT
+  if(dt$md=='modst'){
+    dm<-data.frame(m$X)
+    dm$id<-seq(1,dim(dm)[1],1)
+    dm$bp<-breakfactor(m,breaks=length(unique(m$breakpoints)))
+    dout$bpt<-max(subset(dm,bp=='segment1')$year)
+  } else if (dt$md=='modseg'){
+    dout$bpt<-round(data.frame(modseg$psi)$Est.,digits=0)
+  } else {
+    dout$bpt<-subset(d2,p==max(d2$p))$year[1]
+  }
+  dout<-data.frame(dout)
+  dout$md<-dt$md
+  l[[i]]<-dout
+}
+z<-data.frame(do.call('rbind',l))
+z<-z[order(z$chng),]
+
+#IF BREAK IS A MINIMUM, TAKE START OF LINEAR CHANGE INSTEAD
+f<-function(d){
+  pbt<-subset(d,year==unique(d$bpt))
+  if(pbt$p<=mean(d$p)){
+    bpt<-subset(d,p==max(d$p))$year[1]
+  } else { bpt<-unique(d$bpt)
+  }
+  
+  if(unique(d$var)=='her.metai.rv'){
+    bpt<-min(d$year,na.rm=TRUE)
+  } else  bpt<-bpt
+  
+  d$bpt<-bpt
+  return(d)
+}
+z<-ddply(z,.(var),.fun=f)
+
+#plot(seq(1,20,1),seq(1,20,1),col='white',pch=15)
+#colorbar.plot(10,10,col=as.character(rdat$cl),strip=seq(-.081,0.081,length.out=20),strip.width=.05,strip.length=.75)
+```

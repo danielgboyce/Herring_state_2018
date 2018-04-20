@@ -900,10 +900,10 @@ f<-function(d){
   d$resid<-residuals(modlm)
   t<-ts(d$resid)
   acpar<-mean(acf(t,plot=F)$acf[2])
-  
+
   mod<-gls(y~year,data=d,method='ML',correlation=corAR1(acpar, form = ~year))
   s<-summary(mod)
-  
+
   #modg<-gamm(y~s(year),data=d,correlation=corCAR1(value=acpar, form = ~year))
   modg<-gamm(y~s(year,k=7),data=d,correlation=corCAR1(form = ~year),gamma=1)
   sg<-summary(modg$gam)
@@ -1099,7 +1099,7 @@ for(i in 1:6){
   d2<-na.omit(subset(pdats,var %in% as.character(cl$var)))
   if(i==3){d2$y<-d2$y*-1
   } else NULL
-  
+
   ylm<-c(-2,2)
   xlm<-c(1965,2017)
   if(length(unique(d2$var))>1){
@@ -1340,7 +1340,7 @@ for(i in 1:length(vr)){
   dt$AIC<-ifelse(dt$md=='modl',dt$AIC,dt$AIC)
   dt<-subset(dt,AIC==min(dt$AIC))
   mtype<-dt$md
-  
+
   if(dt$md=='modnl'){
     modl<-modnl
     d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
@@ -1358,13 +1358,13 @@ for(i in 1:length(vr)){
     d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
     d3<-data.frame(year=seq(min(d$year),max(d$year),1))
   }
-  
+
   p<-predict(modl,newdata=d3,se.fit=TRUE,type='response')
   d3$p<-p$fit
   d3$se<-p$se.fit
   d3$upr<-d3$p+(1.96*d3$se)
   d3$lwr<-d3$p-(1.96*d3$se)
-  
+
   s<-summary(modl)
   r2<-round(s$r.squared,digits=2)
   p<-predict(modl,newdata=d2,se.fit=TRUE,type='response')
@@ -1373,7 +1373,7 @@ for(i in 1:length(vr)){
   d2$upr<-d2$p+(1.96*d2$se)
   d2$lwr<-d2$p-(1.96*d2$se)
   ylm<-c(min(c(d$y,d2$lwr)),max(c(d$y,d2$upr)))
-  
+
   ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
   plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE)
   polygon(c(d2$year,d2$year[length(d2$year):1]),c(d2$upr,d2$lwr[length(d2$lwr):1]),col=alpha(as.character(unique(d$cl)),.3),border=NA)
@@ -1392,7 +1392,7 @@ for(i in 1:length(vr)){
   dout<-d3
   dout$chng<-dout$p[1]-dout$p[length(dout$p)]
   dout$var<-vr[i]
-  
+
   #GET BREAKPOINT
   if(dt$md=='modst'){
     dm<-data.frame(m$X)
@@ -1419,11 +1419,11 @@ f<-function(d){
     bpt<-subset(d,p==max(d$p))$year[1]
   } else { bpt<-unique(d$bpt)
   }
-  
+
   if(unique(d$var)=='her.metai.rv'){
     bpt<-min(d$year,na.rm=TRUE)
   } else  bpt<-bpt
-  
+
   d$bpt<-bpt
   return(d)
 }
@@ -2890,7 +2890,7 @@ f<-function(d){
   dt$AIC<-ifelse(dt$md=='modseg',dt$AIC-2,dt$AIC)
   dt$AIC<-ifelse(dt$md=='modl',dt$AIC-2,dt$AIC)
   dt<-subset(dt,AIC==min(dt$AIC))
-  
+
   if(dt$md=='modnl'){
     modl<-modnl
     d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
@@ -2904,7 +2904,7 @@ f<-function(d){
     modl<-modl
     d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
   }
-  
+
   s<-summary(modl)
   r2<-round(s$r.squared,digits=2)
   p<-predict(modl,newdata=d2,se.fit=TRUE,type='response')
@@ -2913,7 +2913,7 @@ f<-function(d){
   d2$upr<-d2$p+(1.96*d2$se)
   d2$lwr<-d2$p-(1.96*d2$se)
   ylm<-c(min(c(d$y,d2$lwr)),max(c(d$y,d2$upr)))
-  
+
   ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
   print(ylm)
   plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE)
@@ -3504,7 +3504,7 @@ f<-function(nm,lg,ttl,zt){
   d<-read.csv(paste(nm),header=TRUE)
   ot<- d %>% gather(age, y, X1:X11)
   ot$agen<-as.numeric(gsub('X','',ot$age))
-  
+
   if(zt==TRUE){
     ff<-function(d){
       d$y<-(d$y-mean(d$y,na.rm=TRUE))/sd(d$y,na.rm=TRUE)
@@ -3512,16 +3512,16 @@ f<-function(nm,lg,ttl,zt){
     }
     ot<-ddply(ot,.(age),.fun=ff)
   } else NULL
-  
+
   ot$ly<-log10(ot$y+.01)
   dt<-unique(subset(ot,select=c('age','agen')))
-  
+
   if(lg==TRUE){
     ott<-subset(ot,select=c('ly','age','year','agen'))
   } else {
     ott<-subset(ot,select=c('y','age','year','agen'))
   }
-  
+
   names(ott)[1]<-'y'
   return(ggplot()+
            geom_tile(data=ott, aes(x=(agen), y=year,fill=y),col='gray80',size=.0001)+
@@ -3639,14 +3639,14 @@ F<-function(){
   herm2<-subset(herm,division=='4X')
   herm<-data.frame(year=sort(unique(herm$year)),
                    landa=tapply(herm$catch...000.kg.,herm$year,function(x) sum(x,na.rm=TRUE)))
-  
+
   herm2<-data.frame(year=sort(unique(herm2$year)),
                     land4x=tapply(herm2$catch...000.kg.,herm2$year,function(x) sum(x,na.rm=TRUE)))
   a<-merge(herm,herm2,by=c('year'),all=FALSE)
   a$pct<-(a$land4x/a$landa)*100
   plot(a$year,a$pct,pch=16,las=1,xlab='Year',ylab='Percent of all herring landings comprised of Div. 4X')
-  
-  
+
+
   land<-read.csv('all_comm_landings_canada.csv',header=TRUE)
   names(land)<-tolower(names(land))
   land<-data.frame(year=sort(unique(land$year)),
@@ -3769,25 +3769,25 @@ par(new=TRUE)
 plot(her$year,her$f,pch=15,col='red',yaxt='n')
 axis(4,at=seq(plot(her$expr,her$f,pch=15)
               text(her$expr,her$f,labels=her$year)
-              
+
               #AVERAGE WEIGHT PER YEAR
               f<-function(d){
                 return(data.frame(wgt=mean(d$wage7,d$wage8,d$wage9,d$wage10,d$wage11,na.rm=TRUE)))
               }
               d2<-ddply(her,.(year),.fun=f)
               her<-merge(her,d2,by=c('year'),all.x=TRUE,all.y=FALSE)
-              
+
               her<-subset(her,select=c('year','r','ssb','s','obs.w','pred.w','f','wgt','expr'))
               names(her)<-c('year','her.rec1','her.ssb','herlrv.surv','her.cf.rv','her.cf.cat','her.f','her.waa','her.expr')
-              
-              
-              
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
+
+
+
               setwd(figsdir)
               pdatt<-pdat.fac
               cr<-cor(pdat.fac[,-1],use='pairwise.complete.obs')
@@ -3795,15 +3795,15 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               par(mar=c(4,1,1,1))
               corrplot(cr,method='ellipse',type='lower',diag=FALSE,order='AOE',tl.col='black')
               dev.off()
-              
-              
-              
-              
-              
+
+
+
+
+
               ################################################################
-              
+
               # 'STOP-LIGHT' PLOT SHOWING MODEL PREDICTED RATES OF CHANGE IN VARIABLES WITH BREAKPOINTS OVERLAID
-              
+
               ################################################################
               #GET ORDER FOR IMAGE PLOT - SORT FROM RAPID DECLINE TO RAPID INCREASE
               p<-pdat.lin
@@ -3817,7 +3817,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 d$mn<-mean(d$y,na.rm=TRUE)
                 d$sdd<-sd(d$y,na.rm=TRUE)
                 d$z<-(d$y-d$mn)/d$sdd
-                
+
                 d1<-subset(d,year==min(d$year))
                 d2<-subset(d,year==max(d$year))
                 a<-data.frame(var=vbls[i],
@@ -3826,8 +3826,8 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               }
               ord<-data.frame(do.call('rbind',ll))
               ord<-ord[order(ord$chng),]
-              
-              
+
+
               #FORMAT AS MATRIX
               vbls<-as.character(ord$var)
               ll<-list()
@@ -3845,8 +3845,8 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               }
               mat.lin<-rbind.fill(ll)
               mat.lin$year<-as.numeric(as.character(mat.lin$year))
-              
-              
+
+
               #FORMAT AS MATRIX
               bpdat<-bpdat[order(bpdat$bpt,decreasing=TRUE),]
               vbls<-as.character(bpdat$var)
@@ -3866,16 +3866,16 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               }
               mat.lin.bp<-rbind.fill(ll)
               mat.lin.bp$year<-as.numeric(as.character(mat.lin.bp$year))
-              
-              
+
+
               #ADD PLOTTING COORDINATES TO BREAKPOINTS DATA
               dm<-unique(subset(mat.lin.bp,select=c('vbl','lbl')))
               bpdat<-merge(bpdat,dm,by.x='var',by.y='lbl',all.x=TRUE,all.y=FALSE)
               bpdat$bpt<-bpdat$bpt+.5
-              
+
               ggplot <- function(...) { ggplot2::ggplot(...) + theme_bw() }
-              
-              
+
+
               pltfun<-function(a){
                 aa<-data.frame(z=seq((-max(abs(a$z),na.rm=TRUE)),max(abs(a$z),na.rm=TRUE),length.out=100))
                 a<-rbind.fill(a,aa)
@@ -3890,7 +3890,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 ylm<-seq(min(a$vbl,na.rm=TRUE),max(a$vbl,na.rm=TRUE),1)
                 lb<-unique(subset(a,select=c('vbl','lbl')))
                 lb<-na.omit(lb[order(lb$vbl),])
-                
+
                 return(
                   ggplot()+
                     geom_tile(data=a, aes(x=year, y=vbl,fill=zcat),colour='white',size=.001)+
@@ -3901,38 +3901,38 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                     scale_y_continuous(expand=c(0,0),breaks=ylm,labels=lb$lbl,limits=c(0,max(ylm)+1))
                 )
               }
-              
+
               setwd(figsdir)
               pdf('linear_trends_image.v2.pdf',height=7,width=9)
               pltfun(subset(mat.lin.bp,year>=1965))+ geom_point(aes(x=bpt,y=vbl),data=bpdat,col='black',alpha=1,size=3,shape=23)
               dev.off()
-              
+
               setwd(figsdir)
               pdf('linear_trends_image2.v2.pdf',height=9,width=8)
               pltfun(subset(mat.lin,year>=1965))
-              
+
               pltfun(subset(mat.lin,year>=1965))+ geom_point(aes(x=bpt,y=vbl),data=bpdat,col='black',alpha=1,size=3,shape=23)
               dev.off()
-              
-              
-              
-              
-              
+
+
+
+
+
               ################################################################
-              
+
               #  PLOTS RATES OF CHANGE SEPARATED BY SPECIES GROUPS
-              
+
               ################################################################
               #########################################################
-              
+
               #########################################################
               #CONVERT TO TOTAL CHANGE IS Z-UNITS; NEED TO ADD SO THAT ALL POSITIVE
               mpdat<-mpdat0
               dum<-data.frame(t1=mpdat$t1+300,
                               t2=mpdat$t2+300)
               mpdat$chng<-dum$t2-dum$t1
-              
-              
+
+
               brks<-seq(-0.001,1,.1)
               mpdat$r2f<-cut(mpdat$r2,breaks=brks)
               dm<-data.frame(r2f=sort(unique(mpdat$r2f)),
@@ -3940,7 +3940,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                              cl2=rev(gray.colors(length(unique(mpdat$r2f)))),
                              alph=seq(0,1,length.out=10))
               mpdat<-merge(mpdat,dm,by=c('r2f'),all.x=TRUE,all.y=FALSE)
-              
+
               #CATEGORIZE INTO MAJOR GROUPS: PHYTO, ZOOP, HERLARVAE, HERRING, ENVIRONMENTAL
               mpdat$grp<-ifelse(regexpr('lrv', mpdat$var)>0 |
                                   regexpr('zp', mpdat$var)>0,'d_zoop','a_env')
@@ -3950,13 +3950,13 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                                   regexpr('chl', mpdat$var)>0,'b_phyt',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('prey', mpdat$var)>0,'d_zoop',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('had', mpdat$var)>0,'g_had',mpdat$grp)
-              
-              
+
+
               f<-function(d){d<-d[order(d$chng),]}
               mpdat<-ddply(mpdat,.(grp),.fun=f)
               mpdat$mvar<-seq(1,dim(mpdat)[1],1)
               cx<-1.25
-              
+
               setwd(figsdir)
               pdf('pedicted_model_changes.v2.pdf',height=10,width=9)
               par(mar=c(4,8,1,1))
@@ -3969,7 +3969,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               abline(h=lns+.5,col='gray',lwd=1)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),col=as.character(mpdat$cl),pch=16,cex=cx)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),pch=1,cex=cx,lwd=.01,col='gray')
-              
+
               plot(mpdat$chng,seq(1,dim(mpdat)[1],1),xlim=c(-5,15),col=as.character(mpdat$cl2),pch=16,yaxt='n',ylab='',cex=cx)
               axis(2,at=mpdat$mvar,labels=mpdat$var,las=1,cex=.75)
               abline(v=0,lty=3)
@@ -3978,13 +3978,13 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               abline(h=lns+.5,col='gray',lwd=2)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),col=as.character(mpdat$cl2),pch=16,cex=cx)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),pch=1,cex=cx,lwd=.1)
-              
-              
-              
+
+
+
               #1965 TO 2015
               mpdat<-mpdat0
               mpdat$chng<-mpdat$pct.65
-              
+
               brks<-seq(-0.001,1,.1)
               mpdat$r2f<-cut(mpdat$r2,breaks=brks)
               dm<-data.frame(r2f=sort(unique(mpdat$r2f)),
@@ -3994,7 +3994,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               mpdat<-merge(mpdat,dm,by=c('r2f'),all.x=TRUE,all.y=FALSE)
               mpdat$pchh<-ifelse(mpdat$pv<=.05,16,17)
               mpdat$pchh2<-ifelse(mpdat$pv<=.05,21,2)
-              
+
               #CATEGORIZE INTO MAJOR GROUPS: PHYTO, ZOOP, HERLARVAE, HERRING, ENVIRONMENTAL
               mpdat$grp<-ifelse(regexpr('lrv', mpdat$var)>0 |
                                   regexpr('zp', mpdat$var)>0,'d_zoop','a_env')
@@ -4004,12 +4004,12 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                                   regexpr('chl', mpdat$var)>0,'b_phyt',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('prey', mpdat$var)>0,'d_zoop',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('had', mpdat$var)>0,'g_had',mpdat$grp)
-              
+
               f<-function(d){    d<-d[order(d$chng),]}
               mpdat<-ddply(mpdat,.(grp),.fun=f)
               mpdat$mvar<-seq(1,dim(mpdat)[1],1)
               cx<-1.25
-              
+
               par(mar=c(4,8,1,1))
               plot(mpdat$chng,seq(1,dim(mpdat)[1],1),xlim=c(-400,300),col=as.character(mpdat$cl),pch=mpdat$pchh,yaxt='n',ylab='',cex=cx,ylim=c(2.5,max(mpdat$mvar)-1.5),xlab='1965-2015 Change [Percent]')
               axis(2,at=mpdat$mvar,labels=mpdat$var,las=1,cex=.75)
@@ -4021,7 +4021,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),col=as.character(mpdat$cl),pch=mpdat$pchh,cex=cx)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),pch=mpdat$pchh2,cex=cx,lwd=.01,col='gray')
               legend(200,10,legend=c('P-value<=0.05','P-value>0.05'),pch=c(16,17),bty='n')
-              
+
               par(mar=c(4,8,1,1))
               plot(mpdat$chng,seq(1,dim(mpdat)[1],1),xlim=c(-400,300),col=as.character(mpdat$cl2),pch=mpdat$pchh,yaxt='n',ylab='',cex=cx,ylim=c(2.5,max(mpdat$mvar)-1.5),xlab='1965-2015 Change [Percent]')
               axis(2,at=mpdat$mvar,labels=mpdat$var,las=1,cex=.75)
@@ -4033,14 +4033,14 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),col=as.character(mpdat$cl2),pch=mpdat$pchh,cex=cx)
               points(mpdat$chng,seq(1,dim(mpdat)[1],1),pch=mpdat$pchh2,cex=cx,lwd=.01,col='gray')
               legend(150,10,legend=c('P-value<=0.05','P-value>0.05'),pch=c(16,17),bty='n')
-              
-              
-              
-              
+
+
+
+
               ###1980-2005
               mpdat<-mpdat0
               mpdat$chng<-mpdat$pct.05
-              
+
               brks<-seq(-0.001,1,.1)
               mpdat$r2f<-cut(mpdat$r2,breaks=brks)
               dm<-data.frame(r2f=sort(unique(mpdat$r2f)),
@@ -4050,7 +4050,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               mpdat<-merge(mpdat,dm,by=c('r2f'),all.x=TRUE,all.y=FALSE)
               mpdat$pchh<-ifelse(mpdat$pv<=.05,16,17)
               mpdat$pchh2<-ifelse(mpdat$pv<=.05,21,2)
-              
+
               #CATEGORIZE INTO MAJOR GROUPS: PHYTO, ZOOP, HERLARVAE, HERRING, ENVIRONMENTAL
               mpdat$grp<-ifelse(regexpr('lrv', mpdat$var)>0 |
                                   regexpr('zp', mpdat$var)>0,'d_zoop','a_env')
@@ -4060,12 +4060,12 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                                   regexpr('chl', mpdat$var)>0,'b_phyt',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('prey', mpdat$var)>0,'d_zoop',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('had', mpdat$var)>0,'g_had',mpdat$grp)
-              
+
               f<-function(d){    d<-d[order(d$chng),]}
               mpdat<-ddply(mpdat,.(grp),.fun=f)
               mpdat$mvar<-seq(1,dim(mpdat)[1],1)
               cx<-1.25
-              
+
               par(mar=c(4,8,1,1))
               plot(mpdat$chng,seq(1,dim(mpdat)[1],1),xlim=c(-100,100),col=as.character(mpdat$cl),pch=mpdat$pchh,yaxt='n',ylab='',cex=cx,ylim=c(2.5,max(mpdat$mvar)-1.5),xlab='1985-2005 Change [Percent]')
               axis(2,at=mpdat$mvar,labels=mpdat$var,las=1,cex=.75)
@@ -4087,8 +4087,8 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 }
               }
               zz<-dlply(md,.(mvar),.fun=f)
-              
-              
+
+
               par(mar=c(4,8,1,1))
               plot(mpdat$chng,seq(1,dim(mpdat)[1],1),xlim=c(-100,100),col=as.character(mpdat$cl2),pch=mpdat$pchh,yaxt='n',ylab='',cex=cx,ylim=c(2.5,max(mpdat$mvar)-1.5),xlab='1985-2005 Change [Percent]')
               axis(2,at=mpdat$mvar,labels=mpdat$var,las=1,cex=.75)
@@ -4110,18 +4110,18 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 }
               }
               zz<-dlply(md,.(mvar),.fun=f)
-              
+
               dev.off()
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
               ###################################################################
-              
+
               #PLOTS ABSOLUTE RATES OF CHANGE SEPARATED BY SPECIES GROUPS
-              
+
               ###################################################################
               mpdat<-mpdat0
               dum<-data.frame(t1=mpdat$t1+300,
@@ -4129,7 +4129,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               mpdat$chng<-dum$t2-dum$t1
               mpdat$chngabs<-abs(mpdat$chng)
               mpdat$lchngabs<-log10(abs(mpdat$chng)+1)
-              
+
               #CATEGORIZE INTO MAJOR GROUPS: PHYTO, ZOOP, HERLARVAE, HERRING, ENVIRONMENTAL
               mpdat$grp<-ifelse(regexpr('lrv', mpdat$var)>0 |
                                   regexpr('zp', mpdat$var)>0,'d_zoop','a_env')
@@ -4139,16 +4139,16 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                                   regexpr('chl', mpdat$var)>0,'b_phyt',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('prey', mpdat$var)>0,'d_zoop',mpdat$grp)
               mpdat$grp<-ifelse(regexpr('had', mpdat$var)>0,'e_had',mpdat$grp)
-              
+
               dm<-data.frame(grp=sort(unique(mpdat$grp)),
                              cll=c('firebrick4','forestgreen','magenta4','gold3','dodgerblue4','pink'))
               mpdat<-merge(mpdat,dm,by=c('grp'),all.x=TRUE,all.y=FALSE)
-              
+
               f<-function(d){d<-d[order(d$chngabs),]}
               mpdat<-ddply(mpdat,.(grp),.fun=f)
               mpdat$mvar<-seq(1,dim(mpdat)[1],1)
               cx<-1.25
-              
+
               dm<-data.frame(grp=sort(unique(mpdat$grp)),
                              cll=c('firebrick4','forestgreen','magenta4','gold3','dodgerblue4','pink'))
               dm$lmn<-tapply(mpdat$lchngabs,mpdat$grp, mean)
@@ -4157,7 +4157,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               dm$lmn<-tapply(mpdat$lchngabs,mpdat$grp, mean)
               dm$lmd<-tapply(mpdat$lchngabs,mpdat$grp,median)
               dm$x<-(tapply(mpdat$mvar,mpdat$grp,min))
-              
+
               setwd(figsdir)
               pdf('pedicted_absolute_model_changes.pdf',height=11,width=9)
               par(mar=c(4,8,1,1))
@@ -4171,21 +4171,21 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               points(mpdat$lchngabs,seq(1,dim(mpdat)[1],1),col=as.character(mpdat$cl),pch=16,cex=cx)
               points(mpdat$lchngabs,seq(1,dim(mpdat)[1],1),pch=1,cex=cx,lwd=.01,col='gray')
               points(dm$lmd,rep(0,6),col=alpha(as.character(dm$cll),.7),pch=17,cex=2)
-              
+
               barplot(mpdat$lchngabs,horiz=TRUE,col=alpha(as.character(mpdat$cll),.75),border=NA,names.arg=mpdat$var,las=1,xlab='1965-2015 Change [log10|SDs|]',xlim=c(0,1.5),space=.4)
               points(dm$lmd,rep(-3,6),col=alpha(as.character(dm$cll),.7),pch=17,cex=2)
               legend('bottomright',legend=c('Environmental','Phytoplankton','Zooplankton','Herring larvae','Herring'),col=as.character(dm$cll),pch=15,bty='n')
               dev.off()
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
               ################################################################
-              
+
               # REDUNDANCY ANALYSIS ON INTERPOLATED DATA
-              
+
               ################################################################
               ################################################################3
               #REDUNDANCY ANALYSIS OPERATES ON INTERPOLATED DATA - NEEDS NON-MISSING DATA
@@ -4197,26 +4197,26 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               resp<-resp[grepl('\\.land',resp)==FALSE]
               #resp<-resp[!(resp %in% c('her.agepe.cat','her.age5.cat','her.age.cat','her.f'))]
               resp<-c('her.ssb','her.state')
-              
+
               #preds<-nms[!(nms %in% c(resp,'year','her.fmass.rv','her.metai.rv','her.sprng','her.spnug','her.spcv','her.spvar'))]
               preds<-nms[grepl('her\\.',nms)==FALSE]
               preds<-nms[grepl('\\.tplus',nms)==FALSE]
               preds<-nms[grepl('\\.tmin',nms)==FALSE]
               preds<-preds[!(preds %in% c('year','her.fmass.rv','her.metai.rv','her.sprng','her.spnug','her.spcv','her.spvar','her.waa','her.len.rv','her.szdiv.rv','her.szpe.rv','her.ssb'))]
-              
-              
+
+
               pdat.int<-subset(pdat.int,year>=1982)
               prds<-pdat.int[,names(pdat.int) %in% preds]
               rsp<-pdat.int[,names(pdat.int) %in% resp]
               rownames(rsp)<-pdat.int$year
               rownames(prds)<-pdat.int$year
-              
+
               #names(prds)<-gsub(' ','_',names(prds))
               srda<-rda(rsp~.,data=prds,scale=TRUE)
               plot(srda,xlim=c(-1,2))
-              
-              
-              
+
+
+
               library(DataCombine)
               a<-na.omit(subset(data,select=c('year','her.expr','her.state')))
               round(cor(a,use='pairwise.complete.obs'),digits=2)
@@ -4229,7 +4229,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               a$r<-residuals(mod2,type='pearson')
               a$r<-residuals(mod3,type='pearson')
               plot(a$year,a$r,pch=15)
-              
+
               plot(data$her.expr,data$her.state,pch=15,col='white')
               text(data$her.expr,data$her.state,labels=data$year)
               cor(data$her.expr,data$her.state,use='pairwise.complete.obs')
@@ -4237,7 +4237,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               RsquareAdj(srda)$r.squared
               #biplot(srda,scaling='symmetric',type=c('text','points'))
               #ordiellipse(srda,)
-              
+
               setwd(figsdir)
               pdf('rdaplot.pdf',height=8,width=9)
               xlm <-c(-1.6,1.5)
@@ -4246,7 +4246,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               clresp<-'springgreen4'
               yr<-ifelse(as.numeric(rownames(rsp))<=1988,'red3','green')
               cls<-c(rev(heat.colors(dim(rsp)[1])),'darkred')
-              
+
               plot(0,0,xlim=xlm,ylim=ylm,las=1,xlab='RDA1',ylab='RDA2',xaxt='n',yaxt='n',bg='gray')
               rect(xlm[1]-1,ylm[1]-1,xlm[2]+1,ylm[2]+1,col='gray80')
               points(srda,display=c('sites'),scaling=2,xlim=xlm,ylim=ylm,cex=2,col=cls,pch=16)
@@ -4267,16 +4267,16 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               zr<-sort(as.numeric(rownames(rsp)))
               colorbar.plot(1,1.15,zr,col=cls,horizontal=TRUE,strip.width=.04,strip.length=.3)
               dev.off()
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
               ##############################################################
-              
+
               #  MDA PLOTS
-              
+
               ##############################################################
               setwd(figsdir)
               pdf('mda_plots.pdf',height=12,width=14)
@@ -4302,7 +4302,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                                   regexpr('NAO', cldb$var)>0
                                 ,'red3',cldb$cl)
                 cldb$cl<-as.character(cldb$cl)
-                
+
                 cldb$lab<-ifelse(regexpr('Lrv', cldb$var)>0,'Larval Fish','Phytoplankton')
                 cldb$lab<-ifelse(regexpr('Her', cldb$var)>0,'Herring',cldb$lab)
                 cldb$lab<-ifelse(regexpr('Zoop', cldb$var)>0,'Zooplankton',cldb$lab)
@@ -4316,7 +4316,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                                    regexpr('Phosphate', cldb$var)>0 |
                                    regexpr('NAO', cldb$var)>0
                                  ,'Environment',cldb$lab)
-                
+
                 #dmat<-1-(cor(df,use='pairwise.complete.obs'))
                 dmat<-1-(abs(cor(df,use='pairwise.complete.obs')))+.001
                 #dmat<-abs(cor(df,use='pairwise.complete.obs'))
@@ -4335,13 +4335,13 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               mdfun.cor(1980,2006)
               mdfun.cor(1965,2015)
               mdfun.cor(1990,2015)
-              
-              
+
+
               mdfun.dst<-function(yr1,yr2){
                 df<-subset(pdat.int,year>=yr1 & year<=yr2)
                 rownames(df)<-df$year
                 df<-df[,!(names(df) %in% c('year','Phyt Rich','Phyt Rich Ct','Zoop Rich','Lrv Fish Rich Ct','Lrv Fish Rich'))]
-                
+
                 dst<-vegdist(df,method='euclidean')
                 ord<-metaMDS(dst,trymax=50,trace=0)
                 #ord<-metaMDS(decostand(df,method='standardize'),trace=0,distance='euclidean')
@@ -4361,11 +4361,11 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               mdfun.dst(1982,2005)
               mdfun.dst(1990,2015)
               dev.off()
-              
-              
-              
-              
-              
+
+
+
+
+
               df<-subset(lrv,var=='Herring')
               f<-function(d){
                 names(d)[1]<-'time'
@@ -4384,7 +4384,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               }
               com<-ddply(subset(df,select=c('tbin3','stdno','lon','lat')),.(tbin3),.fun=f,.progress='text')
               comy<-ddply(subset(df,select=c('year','stdno','lon','lat')),.(year),.fun=f,.progress='text')
-              
+
               map('world',xlim=c(-70,-64),ylim=c(42,45))
               points(comy$lon,comy$lat)
               points(com$lon,com$lat)
@@ -4392,8 +4392,8 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               plot(as.numeric(as.character(com$tbin3)),com$lon)
               plot(comy$year,comy$lat)
               plot(as.numeric(as.character(com$tbin3)),com$lon)
-              
-              
+
+
               f<-function(d){
                 names(d)[1]<-'time'
                 print(dim(d))
@@ -4411,14 +4411,14 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               }
               cos<-ddply(subset(df,select=c('tbin3','stdno','lon','lat')),.(tbin3),.fun=f,.progress='text')
               cosy<-ddply(subset(df,select=c('year','stdno','lon','lat')),.(year),.fun=f,.progress='text')
-              
-              
-              
+
+
+
               library(reshape2)
               library(zoo)
               dat.m <- data.frame(yr=index(dat),value=melt(dat)$value)
-              
-              
+
+
               dm<-na.omit(subset(her,select=c('year','s','ssb')))
               s<-subset(dm,select=c('year','s'))
               ssb<-subset(dm,select=c('year','ssb'))
@@ -4431,12 +4431,12 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               lines(lag(ss,k=-5),col='red')
               plot(ssb)
               lines(lag(ssb,k=-5),col='red')
-              
+
               s<-subset(dm,select=c('year','s'))
               sts<-zoo(s$s,order.by=s$year,frequency=1)
               plot(sts)
               lines(lag(sts,k=5),col='red')
-              
+
               s<-subset(dm,select=c('year','s'))
               sts<-zoo(s$s,order.by=s$year,frequency=1)
               lt<-list()
@@ -4448,17 +4448,17 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 lt[[i]]<-df
               }
               lgdat<-Reduce(function(x, y) merge(x, y, by=c('year'),all=TRUE), lt)#COMBINE
-              
+
               ssb<-subset(dm,select=c('year','ssb'))
               lgdat<-merge(lgdat,ssb,by=c('year'),all.x=TRUE,all.y=FALSE)
               lgdat<-subset(lgdat,year>=1965)
               round(cor(lgdat,use='pairwise.complete.obs'),digits=2)
-              
-              
+
+
               ccf(dm$s,dm$ssb,ylim=c(-.5,.5))
               abline(v=0,lty=2)
               plot(dm$s,dm$ssb)
-              
+
               dst<-vegdist(decostand(pdat.int,method='standardize'),method='euclidean')
               ord<-metaMDS(pdat.int,trymax=50,distance='euclidean')
               #ord<-isoMDS(dst)
@@ -4468,21 +4468,21 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               #text(ord, display = "sites", cex = 0.8, pch=21, col="blue", bg="yellow",adj=0)
               points(ord, display = "sites", cex = 0.8, col=cldb$cl, bg="yellow",pch=15)
               text(ord, display = "spec", cex=0.7, col="blue")
-              
+
               stressplot(ord,dst)
               decostand(varespec, "standardize")
-              
+
               ord<-isoMDS(dst)
               autoplot(ord,label=TRUE)
               autoplot(ord,label=TRUE,colour=cldb$cl)
               slm<-sammon(dst)
               autoplot(slm,label=TRUE)
-              
-              
+
+
               dd<-subset(pdat.fac,select=c('HerSSB','SST','Wind','Stratification'))
               mod<-lm(HerSSB~.^3,data=dd)
               mod<-lm(HerSSB~.*.,data=dd)
-              
+
               library(devtools)
               install_github("ggbiplot", "vqv")
               library(ggbiplot)
@@ -4494,7 +4494,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               era<-ifelse(pd$year<=1988,'pre','post')
               era<-as.factor(era)
               pd<-pd[,-1]
-              
+
               lbls<-sort(unique(era))
               #c('collapse','pose','pre')
               cls<-colorRampPalette(c('green3','magenta4','royalblue'))
@@ -4506,7 +4506,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               plot(seq(1980,2006,1),pc$x[,1],type='l')
               plot(seq(1980,2006,1),pc$x[,2],type='l')
               plot(seq(1980,2006,1),pc$x[,3],type='l')
-              
+
               setwd(figsdir)
               pdf('pcaplot.pdf',height=7,width=7)
               ggbiplot(pc, obs.scale = 1, var.scale = 1, ellipse = TRUE, circle = FALSE,groups=era, var.axes=TRUE,size=5,shape=15)+
@@ -4519,29 +4519,29 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 coord_equal()+
                 coord_cartesian(ylim=ylm,xlim=xlm)
               dev.off()
-              
-              
+
+
               names(pd)<-gsub('>','',names(pd))
               rownames(pd)<-seq(1980,2006,1)
-              
+
               pd2<-pd[,!(names(pd) %in% c('HerSSB','HerWeight','HerRecruitment','HerSurvivorship','HerF'))]
               pd2<-pd[,(names(pd) %in% c('SST','WInd','Stratification','Temperature50m'))]
               pd2<-pd[,(names(pd) %in% c('ShannonP','TotPhyto','RIchphyto','Pielouphyto','PhytoTO','Richphyto'))]
-              
+
               pd2<-pdat.fac[,!((names(pdat.fac) %in% c('HerSSB','HerWeight','HerRecruitment','HerSurvivorship','HerF')))]
-              
+
               nms<-c('HerSSB','HerWeight','HerRecruitment','HerSurvivorship','HerF')
               pd2<-(pdat.fac[,names(pdat.fac) %in% c('HerSSB','HerWeight','HerRecruitment','HerSurvivorship','HerF','LHerring')])[5:54,]
-              
-              
-              
+
+
+
               p1<-autoplot(kmeans(pd2,2),data=pd,label=TRUE,label.size=5,,alpha=.1,frame=TRUE)
               p2<-autoplot(pam(pd2, 3), frame = TRUE, frame.type = 'norm',label=TRUE)
               grid.arrange(p2,p3,ncol=2)
               ag<-(agnes(pdat.fac,diss=FALSE,metric='manhattan',stand=TRUE))
-              
-              
-              
+
+
+
               #PLOTS ORDIPLOTS
               ordfun<-function(pd2,n){
                 p1<-autoplot(kmeans(pd2,n),data=pd2,label=TRUE,label.size=3,,alpha=.1,frame=TRUE)
@@ -4549,7 +4549,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 p3<-autoplot(clara(pd2,n),label=TRUE,alpha=.1,label.size=3,frame=TRUE)
                 pc2<-prcomp(pd2,center=TRUE,scale=TRUE)
                 p4<-autoplot(pc2,label=TRUE,alpha=.1,label.size=3,frame=TRUE)
-                
+
                 dmat<-1-cor(pd2,use='pairwise.complete.obs')
                 dst<-as.dist(dmat)
                 grid.arrange(p1,ncol=1)
@@ -4557,9 +4557,9 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 grid.arrange(p3,ncol=1)
                 grid.arrange(p4,ncol=1)
               }
-              
-              
-              
+
+
+
               setwd(figsdir)
               pdf('ordiplots_herring.pdf',width=10,height=8)
               par(mar=c(8,4,8,1))
@@ -4573,7 +4573,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               lines(c(mx$year-1,mx$year),c(mx$ssb2,mx$ssb2))
               text(mx$year-1.75,mx$ssb2,round(mx$ssb2,digits=0))
               text(mn$year,mn$ssb2+40,round(mn$ssb2,digits=0))
-              
+
               plot(her$year,her$ssb2,type='l',las=1,xlab='Year',ylab='SSB [Tons x 1000]',xaxt='n',xlim=c(1966,2005),ylim=c(0,750),lwd=2,yaxt='n')
               axis(1,seq(1965,2010,5))
               axis(2,seq(0,750,100),las=1)
@@ -4600,7 +4600,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               lines(her$year,her$ssb2,col=cl,lwd=2)
               text(mx$year-1.75,mx$ssb2,round(mx$ssb2,digits=0))
               text(mn$year,mn$ssb2+40,round(mn$ssb2,digits=0))
-              
+
               her$r2<-her$r/10000
               plot(her$year,her$r2,type='l',las=1,xlab='Year',ylab='R [Tons x 1000]',xaxt='n',xlim=c(1966,2005),ylim=c(0,750),lwd=2,yaxt='n')
               axis(1,seq(1965,2010,5))
@@ -4611,7 +4611,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               text(mx$year-1.75,mx$r2,round(mx$r2,digits=0))
               text(mn$year+1,mn$r2+10,round(mn$r2,digits=0))
               lines(her$year,her$ssb2,type='l',col='red')
-              
+
               par(mar=c(6,4,4,2))
               pd2<-pdat.fac[,names(pdat.fac) %in% c('Her SSB','Her Weight','Her Recruitment','Her Survivorship','Her F')][5:54,]
               names(pd2)<-gsub(' ','_',names(pd2))
@@ -4631,7 +4631,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               # using dendrapply
               clusDendro = dendrapply(as.dendrogram(agh), colLab)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7)
-              
+
               dn<-(diana(pd2,diss=FALSE,metric='euclidean',stand=TRUE))
               dnh<-as.hclust(dn)
               labelColors = c('red3','royalblue','forestgreen','gold3')
@@ -4639,25 +4639,25 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               clusDendro = dendrapply(as.dendrogram(dnh), colLab)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7,type='triangle')
-              
+
               par(mar=c(8,4,8,2))
               plot(clusDendro, main = "",las=1,horiz=FALSE,cex=.7)
-              
+
               #par(mfrow=c(2,2),mar=c(4,4,1,1))
               ordfun(na.omit(pd2),3)
               dev.off()
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
+
+
+
+
+
+
               par(mar=c(8,4,8,1))
               psidat<-unique(subset(bpdat,var %in% c('Her F','Her SSB','Her CF obs','Her Weight','L Herring')))
               her$ssb2<-her$ssb/1000
@@ -4669,7 +4669,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               lines(c(mx$year-1,mx$year),c(mx$ssb2,mx$ssb2))
               text(mx$year-1.75,mx$ssb2,round(mx$ssb2,digits=0))
               text(mn$year,mn$ssb2+40,round(mn$ssb2,digits=0))
-              
+
               plot(her$year,her$ssb2,type='l',las=1,xlab='Year',ylab='SSB [Tons x 1000]',xaxt='n',xlim=c(1966,2005),ylim=c(0,750),lwd=2,yaxt='n')
               axis(1,seq(1965,2010,5))
               axis(2,seq(0,750,100),las=1)
@@ -4696,7 +4696,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               lines(her$year,her$ssb2,col=cl,lwd=2)
               text(mx$year-1.75,mx$ssb2,round(mx$ssb2,digits=0))
               text(mn$year,mn$ssb2+40,round(mn$ssb2,digits=0))
-              
+
               her$r2<-her$r/10000
               plot(her$year,her$r2,type='l',las=1,xlab='Year',ylab='R [Tons x 1000]',xaxt='n',xlim=c(1966,2005),ylim=c(0,750),lwd=2,yaxt='n')
               axis(1,seq(1965,2010,5))
@@ -4707,9 +4707,9 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               text(mx$year-1.75,mx$r2,round(mx$r2,digits=0))
               text(mn$year+1,mn$r2+10,round(mn$r2,digits=0))
               lines(her$year,her$ssb2,type='l',col='red')
-              
-              
-              
+
+
+
               library(ggfortify)
               #PLOTS ORDIPLOTS
               ordfun<-function(pdd,n){
@@ -4719,7 +4719,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 p3<-autoplot(clara(pdd,n),label=TRUE,alpha=.1,label.size=3,frame=TRUE)
                 pc2<-prcomp(pdd,center=TRUE,scale=TRUE)
                 p4<-autoplot(pc2,label=TRUE,alpha=.1,label.size=3,frame=TRUE)
-                
+
                 dmat<-1-cor(pdd,use='pairwise.complete.obs')
                 dst<-as.dist(dmat)
                 grid.arrange(p1,ncol=1)
@@ -4727,9 +4727,9 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 grid.arrange(p3,ncol=1)
                 grid.arrange(p4,ncol=1)
               }
-              
-              
-              
+
+
+
               setwd(figsdir)
               pdf('ordiplots_herring_v2.pdf',width=10,height=8)
               nms<-names(pdat.fac)
@@ -4742,7 +4742,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               #nms<-nms[grepl('\\.cat',nms)==FALSE]
               #pd2<-pdat.fac[,names(pdat.fac) %in% c(nms,'year')]
               pd2<-pdat.fac[,names(pdat.fac) %in% c(nms)]
-              
+
               par(mar=c(6,4,4,2))
               #pd2<-pdat.fac[,names(pdat.fac) %in% c('Her SSB','Her Weight','Her Recruitment','Her Survivorship','Her F')][5:54,]
               #names(pd2)<-gsub(' ','_',names(pd2))
@@ -4762,7 +4762,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               # using dendrapply
               clusDendro = dendrapply(as.dendrogram(agh), colLab)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7)
-              
+
               dn<-(diana(pd2,diss=FALSE,metric='euclidean',stand=TRUE))
               dnh<-as.hclust(dn)
               labelColors = c('red3','royalblue','forestgreen','gold3')
@@ -4770,20 +4770,20 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               clusDendro = dendrapply(as.dendrogram(dnh), colLab)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7)
               #plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7,type='triangle')
-              
+
               par(mar=c(8,4,8,2))
               plot(clusDendro, main = "",las=1,horiz=FALSE,cex=.7)
-              
+
               #par(mfrow=c(2,2),mar=c(4,4,1,1))
               ordfun(na.omit(pd2),3)
               dev.off()
-              
-              
-              
-              
-              
+
+
+
+
+
               ################################################################
-              
+
               #PLOTS OUT CENTRAL TENDANCY TRENDS
               nms<-names(pdat.fac)
               nms<-nms[grepl('\\.ct',nms)==TRUE]
@@ -4793,7 +4793,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               #STANDARDIZE COLUMNS TO UNIT VARIANCE
               f<-function(x){scale(x,center=TRUE,scale=FALSE)}
               a<-data.frame(cbind(subset(a,select='year'),apply(a[,2:dim(a)[2]],2,f)))
-              
+
               setwd(figsdir)
               pdf('central_tendancy_timetrends.pdf',height=7,width=9)
               par(mar=c(4,4,1,1))
@@ -4810,33 +4810,33 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               f(subset(a,select=c('year','strt.ct')),'dodgerblue4')
               f(subset(a,select=c('year','t50.ct')),'magenta4')
               f(subset(a,select=c('year','wind.tmin')),'gold3')
-              
+
               aa<-data.frame(year=sort(unique(a$year)),
                              mn=rowMeans(subset(a,select=c('sst.t12','chl.ct','nut.ct','strt.ct','t50.ct')),na.rm=TRUE))
               lines(aa$year,aa$mn,col='black',lwd=2)
               points(aa$year,aa$mn,col='black',pch=15)
               legend('topleft',legend=c('SST','Chl','Nutrients','Stratification','Temperature 50m','Wind'),col=c('firebrick4','forestgreen','green','dodgerblue4','magenta4','gold3'),lwd=3,bty='n')
               dev.off()
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
               nms<-names(pdat.fac)
               nms<-nms[grepl('\\.tplus',nms)==FALSE]
               nms<-nms[grepl('\\.tmin',nms)==FALSE]
               df<-pdat.fac[,names(pdat.fac) %in% nms]
               df$sst.t12<-ifelse(df$sst.t12==Inf,NA,df$sst.t12)
-              
+
               k<-3
               dmat<-abs(cor(df,use='pairwise.complete.obs',method='spearman'))
               dst<-as.dist(dmat)
               ff<-fanny(dst,k,maxit=10000,diss=T)
-              
+
               dum<-c('red3','forestgreen','gold','cornflowerblue','darkblue')
               plot(silhouette(ff),col=dum[1:k],main='')#silhouette plot
-              
+
               dc.pcoa<-cmdscale(dst)
               dc.scores<-scores(dc.pcoa,choices=c(1,2))
               spefuz.g<-ff$clustering
@@ -4844,7 +4844,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                             clusters=ff$clustering)
               aa<-data.frame(ff$membership)
               aa$var<-rownames(a)
-              
+
               par(mar=c(1,1,1,8),oma=c(1,1,1,1))
               plot(scores(dc.pcoa),asp=1,type='n',xlim=c(-.75,1.1),ylim=c(-1,1.2),las=1,axes=FALSE,xlab='',ylab='')
               stars(ff$membership,location=scores(dc.pcoa),draw.segments=T,add=T,scale=F,len=.1,col.segments=alpha(c(dum[1:k]),.75),byt='n',labels=NULL,xlim=c(-1.1,1.4),ylim=c(-1,.5),lwd=.0001,xpd=TRUE,border=NULL,radius=FALSE,col.radius=alpha('white',.1))
@@ -4854,14 +4854,14 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               hpts<-c(hpts,hpts[1])
               lines(gg[hpts,],col=cl,lwd=3,xlim=c(-1.1,1.4),ylim=c(-1,.5))
               }
-              
-              
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
+
+
               nms<-names(pdat.fac)
               nms<-nms[grepl('her',nms)==FALSE]
               nms<-nms[grepl('\\.ct',nms)==FALSE]
@@ -4874,9 +4874,9 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               nms<-nms[grepl('zp\\.',nms)==FALSE]
               nms<-nms[grepl('\\.dist',nms)==FALSE]
               #pd2<-pdat.fac[,names(pdat.fac) %in% c(nms,'year')]
-              
-              
-              
+
+
+
               par(mar=c(6,4,4,2))
               #pd2<-pdat.fac[,names(pdat.fac) %in% c('Her SSB','Her Weight','Her Recruitment','Her Survivorship','Her F')][5:54,]
               #names(pd2)<-gsub(' ','_',names(pd2))
@@ -4896,7 +4896,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               # using dendrapply
               clusDendro = dendrapply(as.dendrogram(agh), colLab)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7)
-              
+
               dn<-(diana(pd2,diss=FALSE,metric='euclidean',stand=TRUE))
               dnh<-as.hclust(dn)
               labelColors = c('red3','royalblue','forestgreen','gold3')
@@ -4904,25 +4904,25 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               clusDendro = dendrapply(as.dendrogram(dnh), colLab)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7)
               #plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7,type='triangle')
-              
+
               par(mar=c(8,4,8,2))
               plot(clusDendro, main = "",las=1,horiz=FALSE,cex=.7)
-              
+
               #par(mfrow=c(2,2),mar=c(4,4,1,1))
               ordfun(na.omit(pd2),3)
-              
-              
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
+
+
               nms<-names(pdat.fac)
               nms<-nms[grepl('her\\.',nms)==TRUE]
               nms<-nms[grepl('prey',nms)==FALSE]
               pd2<-na.omit(subset(data,select=c(nms)))
-              
+
               par(mar=c(6,4,4,2))
               #pd2<-pdat.fac[,names(pdat.fac) %in% c('Her SSB','Her Weight','Her Recruitment','Her Survivorship','Her F')][5:54,]
               #names(pd2)<-gsub(' ','_',names(pd2))
@@ -4942,13 +4942,13 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               # using dendrapply
               clusDendro = dendrapply(as.dendrogram(agh), colLab)
               plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7)
-              
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
+
               ####################################################################
               #ESTIMATES VARIATION IN LARVAL ABUNDANCE BY DAY FOR EACH YEAR OF SURVEY
               f<-function(d){
@@ -4971,18 +4971,18 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 } else NULL
               }
               lphen<-ddply(larv,.(year),.fun=f,.progress='text')
-              
+
               lphen2<-subset(lphen,is.na(p)==FALSE)
               dm<-data.frame(year=seq(1975,2010,1),
                              day=315)
               lphen2<-merge(lphen2,dm,by=c('year','day'),all=TRUE)
-              
+
               cls<-rich.colors(1000)
               x2<-sort(unique(na.omit(lphen2$day)))
               x1<-sort(unique(na.omit(lphen2$year)))
               dm<-expand.grid(day=x2,year=x1)
               datplot<-acast(lphen2,day~year,value.var="p",fun.aggregate=mean)
-              
+
               setwd(figsdir)
               pdf('larval_herring_phenology.pdf',height=8,width=8)
               par(mar=c(6,4,6,1))
@@ -4994,11 +4994,11 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               axis(1,at=dm$day,labels=dm$month,tick=FALSE)
               axis(1,at=dm$day-15,labels=FALSE,tick=TRUE)
               dev.off()
-              
-              
-              
-              
-              
+
+
+
+
+
               setwd(figsdir)
               pdf('herring_larvae_size_trend_spera.pdf',width=6,height=8)
               par(mfrow=c(2,1),mar=c(4,4,1,1))
@@ -5011,7 +5011,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               p<-predict(modf,newdata=pdat,se.fit=TRUE)
               pdat$p<-p$fit
               pdat$se<-p$se.fit
-              
+
               mods<-gam(length~s(year,k=7) + s(lon,lat,k=20) + s(day,bs='cc',k=5),weights=larvs$clen,data=larvs,gamma=1.4)
               pdats<-data.frame(year=seq(min(larvs$year),max(larvs$year),length.out=100),
                                 lon=median(larvs$lon),
@@ -5029,9 +5029,9 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               z<-dlply(pdat,.(year),.fun=f)
               lines(pdats$year,pdats$p,col=cl)
               dev.off()
-              
-              
-              
+
+
+
               ##############################################
               #PLOTS HERRING ABUNDANCE AND WEIGHT AS A FUNCTION OF AVERAGE TEMPERATURE (SURFACE+BOTTOM)/2 FROM RV SURVEY
               setwd(figsdir)
@@ -5051,7 +5051,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               abline(h=0)
               axis(1,at=seq(-2,17,1),labels=F,tick=TRUE)
               axis(1,at=seq(0,15,5),labels=TRUE,tick=FALSE)
-              
+
               plot(stdat$temp,stdat$tno,pch=16,cex=rescale(stdat$n,newrange=c(.5,2.5)),ylim=c(0,10000),las=1,xlab='Temperature',ylab='Total number',xaxt='n',col=alpha('gray',.65))
               #plot(stdat$temp,stdat$tno,pch=15,ylim=c(0,500),las=1)
               mod<-gam(tno~s(temp,k=10),data=stdat,family=Gamma('log'),weights=stdat$n,gamma=1.4)
@@ -5065,10 +5065,10 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               axis(1,at=seq(-2,17,1),labels=F,tick=TRUE)
               axis(1,at=seq(0,15,5),labels=TRUE,tick=FALSE)
               dev.off()
-              
-              
-              
-              
+
+
+
+
               #USES MORE ROBUST MODEL APPROACH APPLIED TO RAW DATA INSTEAD
               setwd(figsdir)
               pdf('herring_larvae_thermal_range_spera.pdf',width=6,height=8)
@@ -5092,7 +5092,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               axis(1,at=seq(-2,20,1),labels=F,tick=TRUE)
               axis(1,at=seq(0,20,5),labels=TRUE,tick=FALSE)
               axis(4,at=seq(0,250,50),labels=TRUE,las=1)
-              
+
               rvw2$sampwgt2<-rvw2$sampwgt+.01
               mod<-gam(sampwgt2~s(temp,k=6),data=subset(rvw2,is.na(sampwgt2)==FALSE),family=Gamma(link='log'),gamma=.7)
               pdat<-data.frame(temp=seq(min(rvw2$temp,na.rm=TRUE),20,length.out=100))
@@ -5112,7 +5112,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               axis(1,at=seq(-2,20,1),labels=F,tick=TRUE)
               axis(1,at=seq(0,20,5),labels=TRUE,tick=FALSE)
               axis(4,at=seq(0,8,2),labels=TRUE,las=1)
-              
+
               mod<-gam(stdno~s(surftemp,k=5),data=ldat,family=nb(link='log'),gamma=1.4)
               pdat<-data.frame(surftemp=seq(min(ldat$surftemp,na.rm=TRUE),20,length.out=100))
               p<-predict(mod,newdata=data.frame(surftemp=pdat$surftemp),type='response',se.fit=TRUE)
@@ -5133,12 +5133,12 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               axis(1,at=seq(0,20,5),labels=TRUE,tick=FALSE)
               axis(4,at=seq(0,80,20),labels=TRUE,las=1)
               dev.off()
-              
-              
-              
-              
-              
-              
+
+
+
+
+
+
               #################################################
               #PLOTS PREDICTED SST PHENOLOGY FOR PRE-POST 1988
               setwd(figsdir)
@@ -5160,12 +5160,12 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               legend('topleft',legend=c('Pre-1988','Post-1988'),col=c(cl2,cl1),lwd=2,bty='n')
               a<-subset(phen3,day==210)#DIFFERENCE IS 1.6 DEGREES
               dev.off()
-              
-              
+
+
               #############################################################
               #FUNCTION TO RETURN MAP
               pltfun<-function(adat,ttl,ct,dg){
-                
+
                 nm<-names(adat)[1]
                 names(adat)[1]<-'y'
                 adat$y<-ifelse(adat$y>ct,ct,adat$y)
@@ -5174,7 +5174,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 a<-adat
                 aa<-data.frame(y=seq(-(max(abs(adat$y),na.rm=TRUE)),max(abs(adat$y),na.rm=TRUE),length.out=100))
                 a<-rbind.fill(a,aa)
-                
+
                 n<-21
                 mxx<-max(abs(adat$y))
                 brks<-seq(-mxx-.01,mxx+.01,length.out=n)
@@ -5187,8 +5187,8 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
                 #cls<-(cls(length(lbls)))
                 cls<-colorRampPalette(c('dodgerblue4','white','firebrick4'))
                 cls<-cls(length(lbls))
-                
-                
+
+
                 return(
                   ggplot()+
                     geom_tile(data=a, aes(x=lon, y=lat,fill=ycat),col='gray80',size=.0001)+
@@ -5211,16 +5211,16 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               p5<-pltfun(subset(phen2,select=c('delta.mn','lon','lat')),'min',.9,3)
               p6<-pltfun(subset(phen2,select=c('delta.tim2','lon','lat')),'tim min',15,3)
               p7<-pltfun(subset(phen2,select=c('delta.dur20','lon','lat')),'dur14',60,3)
-              
-              
+
+
               setwd(figsdir)
               pdf('sst_phen_maps_spera.pdf',width=5,height=10)
               grid.arrange(p1,p2,p3,ncol=1)
               grid.arrange(p4,p5,p6,ncol=1)
               grid.arrange(p7,p7,p7,ncol=1)
               dev.off()
-              
-              
+
+
               #########################################################
               #PLOT RELATIONSHIP BETWEEN LINEAR TIME TREND IN THE TIMING OF SEASONAL MINIMUM VERSUS MAXIMUM
               setwd(figsdir)
@@ -5236,7 +5236,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               abline(h=0,lty=2)
               abline(v=0,lty=2)
               abline(a=0,b=1)
-              
+
               #PLOT RELATIONSHIP BETWEEN LINEAR TIME TREND IN SEASONAL MINIMUM VERSUS MAXIMUM
               plot(phen2$beta.mn,phen2$beta.mx,pch=16,xlim=c(-.01,.11),ylim=c(-.01,.11),las=1,xlab='Time trend in seasonal min SST',ylab='Time trend in seasonal max SST',cex=.1)
               f<-function(d){
@@ -5249,7 +5249,7 @@ axis(4,at=seq(plot(her$expr,her$f,pch=15)
               abline(v=0,lty=2)
               abline(a=0,b=1)
               dev.off()
-              
-              
-              
-              
+
+
+
+
