@@ -1,14 +1,11 @@
 ---
-title: 'Supplementary Information: Herring state'
-author: "Daniel Boyce"
-date: "April 19, 2018"
-output: pdf_document
+output: word_document
 fig_caption: yes
 keep_tex: yes
 header-includes: \usepackage{float}
 ---
 
-```{r setup, include=FALSE}
+```{r global_options, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(fig.pos = 'H')
 ```
@@ -20,6 +17,7 @@ text-align: justify}
 
 ```{r, include=FALSE}
 #READS IN DATA NECESSARY TO PRODUCE FIGURES; FORMATTED IN SEPARATE SCRIPT TO REDUCE TIME IN EACH RMARKDOWN KNITR
+library(knitr)
 library(rcompanion)
 library(ellipse)
 library(RColorBrewer)
@@ -74,47 +72,13 @@ load('adat.RData')
 load('sim1.RData')
 load('sim2.RData')
 load('dats.RData')
+load('pdat.RData')
 ```
 
 
-```{r fs1, message=FALSE,echo=FALSE,results='hide',fig.width=7,fig.height=7,fig.cap="Figure S1 | Spatial domain of survey observations."}
-par(mfrow=c(1,3),mar=c(0,0,0,0),oma=c(0,0,0,0))
-cl1<-'firebrick3'
-cl2<-'dodgerblue3'
-cl3<-'green3'
-xlm<-c(-68,-58.8)
-ylm<-c(41,46.5)
-lw<-.5
-mpcl<-'gray80'
-###########################
-map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
-plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
-plot(plga,add=TRUE,col=alpha(cl1,.4),border=cl1,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
-#POLYGONS CORRESTPOND TO ACOUSTIC SURVEY AREAS
-polygon(x=c(-65.2,-64.84,-64.68,-65.2,-65.2),y=c(45.17,45.31,45.21,45,45.17),col=alpha('darkred',1),border=NA,lwd=1)
-polygon(x=c(-66.37,-66.21,-66.21,-66.37,-66.37),y=c(44.01,44.01,43.85,43.85,44.01),col=alpha('darkred',1),border=NA,lwd=1)
-polygon(x=c(-65.52,-65.74,-65.74,-65.52,-65.52),y=c(43.56,43.56,43.23,43.23,43.56),col=alpha('darkred',1),border=NA,lwd=1)
-box()
-map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
-plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
-plot(plgj2,add=TRUE,col=alpha(cl2,.4),border=cl2,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
-box()
-
-mpcl<-'gray80'
-map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
-plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
-plot(plglrv,add=TRUE,col=alpha(cl3,.4),border=cl3,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
-plot(plglrv1,add=TRUE,col=alpha(cl3,.7),xlim=xlm,ylim=ylm,border=NA)
-box()
-```
-
-**Figure S1 |** Spatial domain of survey observations.
-
-
-
-
-```{r fs2, message=FALSE,echo=FALSE,results='hide',fig.keep='all',fig.width=9,fig.height=3.5,fig.cap="\\label{fig:fs2}Figure S2 | Spatial domain of herring larval retention."}
+```{r fs1, message=FALSE,echo=FALSE,results='hide',fig.keep='all',fig.pos='H',fig.width=6,fig.height=8,fig.cap="Figure S1 | Spatial domain of herring larval retention. Top panel shows the average spatial pattern of herring larvae abundance estimated from the BoF larval survey. Red depicts high abundances and blue low. Bottom panel shows the estimated path of 10000 larvae released within the spawning domain of SWNS spawning herring during September and tracked for 2 months."}
 #MAPS OF LARVAL DISTRIBUTION AND WEBDROGUE PARTICLE TRACKING SIMULATIONS
+options(warn=-1)
 a<-adat
 #SOME NONSENSE TO GET THE COLOUR SCALE RIGHT
 aa<-data.frame(p=seq((min(adat$p,na.rm=TRUE)),max(abs(adat$p),na.rm=TRUE),length.out=100))
@@ -157,12 +121,54 @@ coord_cartesian(ylim=c(42.5,max(adat$clatd)),xlim=c(-69,-60))+
     xlab('')+
     ylab('')
 
-invisible(grid.arrange(p1,p2,ncol=2))
+invisible(grid.arrange(p1,p2,ncol=1))
 ```
 
 
 
-```{r fs3, message=FALSE,echo=FALSE,results='hide',fig.keep='all',fig.width=8,fig.height=13,fig.cap="\\label{fig:fs3}Figure S3 | Spatial domain of herring larval retention."}
+```{r fs2, echo=FALSE, fig.cap="Figure S2 | Conceptual approach to breakpoint estimation. Indices are allowed to change as monotonic, segmented, discrete structural, or smooth functions of time.", fig.pos='H', out.width = '100%'}
+setwd('C:/Users/sailfish/Documents/aalldocuments/literature/research/active/SPERA/code/analysis/Herring_state_2018/SI/SI_data')
+include_graphics("schematic_changepoints.png")
+```
+
+
+```{r fs3, message=FALSE,echo=FALSE,results='hide',fig.pos='H',fig.width=5,fig.height=7,fig.cap="Figure S3 | Spatial domain of survey observations. Top panel depicts the spatial distribution for adults estimated from the summer RV survey (light red) and acoustic surveys (dark red). Blue in the middle panel shows the distribution of juveniles estimated from the summer RV survey, and green in the bottom panel shows the distribution Bay of Fundy larval survey observations."}
+par(mfrow=c(3,1),mar=c(0,0,0,0),oma=c(0,0,0,0))
+cl1<-'firebrick3'
+cl2<-'dodgerblue3'
+cl3<-'green3'
+xlm<-c(-68,-58.8)
+ylm<-c(41,46.5)
+lw<-.5
+mpcl<-'gray80'
+###########################
+map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
+plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
+plot(plga,add=TRUE,col=alpha(cl1,.4),border=cl1,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
+#POLYGONS CORRESTPOND TO ACOUSTIC SURVEY AREAS
+polygon(x=c(-65.2,-64.84,-64.68,-65.2,-65.2),y=c(45.17,45.31,45.21,45,45.17),col=alpha('darkred',1),border=NA,lwd=1)
+polygon(x=c(-66.37,-66.21,-66.21,-66.37,-66.37),y=c(44.01,44.01,43.85,43.85,44.01),col=alpha('darkred',1),border=NA,lwd=1)
+polygon(x=c(-65.52,-65.74,-65.74,-65.52,-65.52),y=c(43.56,43.56,43.23,43.23,43.56),col=alpha('darkred',1),border=NA,lwd=1)
+box()
+map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
+plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
+plot(plgj2,add=TRUE,col=alpha(cl2,.4),border=cl2,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
+box()
+
+mpcl<-'gray80'
+map('worldHires',col=mpcl,fill=TRUE,border=NA,xlim=xlm,ylim=ylm)
+plot(atl, deep=-200, shallow=-20, step=200,add=TRUE,col=c(mpcl,'gray60'),lty=c(1,1),lwd=lw)
+plot(plglrv,add=TRUE,col=alpha(cl3,.4),border=cl3,lwd=.001,xlim=xlm,ylim=ylm,lwd=1)
+plot(plglrv1,add=TRUE,col=alpha(cl3,.7),xlim=xlm,ylim=ylm,border=NA)
+box()
+```
+
+
+
+
+
+
+```{r fs4, message=FALSE,echo=FALSE,results='hide',fig.pos='H',fig.keep='all',fig.width=7,fig.height=11,fig.cap="Figure S4 | Changepoint estimation. Structural time trends in herring indicators. Individual values for each of 16 identified indicators of herring state are plotted over time (points can't see them in my plot). For each indicator the best-fitting linear model fit is plotted (lines) along with the 95% confidence interval about the mean (shading). All indicators were power transformed in a manner that optimized normality, standardized to unit variance, and re-oriented such that positive values (+) represent positive herring state prior to model fitting."}
 
 f<-function(d){
   mod<-lm(y~year,data=d)
@@ -266,7 +272,7 @@ for(i in 1:length(vr)){
   lines(d2$year,d2$p,col=as.character(unique(d$cl)),lwd=2)
   s<-summary(modl)
   r2<-round(s$r.squared,digits=2)
-  legend('topleft',gsub(' ','',paste(unique(d$var),'=',r2)),bty='n',cex=.75)
+  legend('topleft',gsub(' ','',paste(unique(d$var),'=',r2)),bty='n',cex=1.5)
   d2$year<-round(d2$year,digits=0)
   dout<-d3
   dout$chng<-dout$p[1]-dout$p[length(dout$p)]
@@ -310,3 +316,21 @@ z<-ddply(z,.(var),.fun=f)
 #plot(seq(1,20,1),seq(1,20,1),col='white',pch=15)
 #colorbar.plot(10,10,col=as.character(rdat$cl),strip=seq(-.081,0.081,length.out=20),strip.width=.05,strip.length=.75)
 ```
+
+
+
+```{r fs5, message=FALSE,echo=FALSE,results='hide',fig.pos='H',fig.width=7.5,fig.height=6.5,fig.cap="Figure S5 | Sensitivity analyses for multivariate herring health index derivation. Colours depict the different sensitivity analyses; black is the final health index."}
+
+cls<-c('black','blue2','green3','gold3','red3')
+lw<-2
+plot(pdat$year,pdat$her.state.fin,pch=16,las=1,type='l',col=cls[1],xlab='Year',ylab='Health score',xaxt='n',lwd=4,ylim=c(-1.5,1.25))
+lines(pdat$year,pdat$her.state.19ind,col=cls[2],lwd=2)
+lines(pdat$year,pdat$her.state.all,col=cls[3],lwd=2)
+lines(pdat$year,pdat$her.state.noass,col=cls[4],lwd=2)
+lines(pdat$year,pdat$her.state.norv,col=cls[5],lwd=2)
+abline(h=0,lty=2)
+axis(1,seq(1965,2020,5))
+legend('topright',legend=c('Final health index (n=16)','Increasing health indices included (n=19)','All indices included (n=33)','Stock assessment indices removed (n=13)','RV survey indices removed (n=6)'),col=cls,pch=15,bty='n')
+```
+
+

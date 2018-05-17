@@ -1,7 +1,3 @@
-library(rcompanion)
-library(tidyr)
-library(ggpubr)
-library(pheatmap)
 library(ellipse)
 library(RColorBrewer)
 library(DataCombine)
@@ -102,1246 +98,6 @@ mpdat0<-mpdat
 
 
 
-
-
-
-
-
-setwd(datadir)
-load('SPERA_andata_new.RData')
-#load('SPERA_andata_spawnar.RData')
-#load('SPERA_andata.RData')
-nms<-names(data)
-nms<-nms[grepl('her',nms)==TRUE]
-nms<-nms[grepl('\\.se',nms)==FALSE]
-nms<-nms[grepl('\\.tplus',nms)==FALSE]
-nms<-nms[grepl('\\.tmin',nms)==FALSE]
-nms<-nms[grepl('\\.cat',nms)==FALSE]
-nms<-nms[grepl('sp\\.n',nms)==FALSE]
-df<-data[,names(data) %in% c('year',nms)]
-df<-subset(df,year>=1965)
-df<-df[,!(names(df) %in% c('herjuv.prey.bof','her.jf.bof','her.preytot.bof','her.land','her.expr','herjuv.spvar','herjuv.spcv','herjuv.sprng','herjuv.spnug','her.szdiv.rv','her.dvm2.rv','herjuv.dvm2.rv','her.dur2.rv','herjuv.dur2.rv','her.durng.rv','herjuv.durng.rv','her.state','her.ssb','her.land.pct1','her.land.spdiv','her.land.sprich','herlrv.dep.bof','herlrv.spcv','herlrv.spnug','herlrv.sprng','herlrv.spvar','herjuv.dumx.rv'))]
-#df$her.spcv<-df$her.spcv*-1
-#df$her.spvar<-df$her.spvar*-1
-#df$her.spnug<-df$her.spnug*-1
-df$her.dvm.rv<-ifelse(df$her.dvm.rv==Inf,NA,df$her.dvm.rv)
-######
-
-df<-df[,!(names(df) %in% c('her.eggprod','her.tbio','her.totno.rv','herjuv.totno.rv'))]
-
-#CONVERT TO SHORT FORM, EXAMINE NORMALITY, TRANSFORM USING BEST EXPONENTIAL TRANSFORM
-dfs<-df %>% gather(var,y,-year)
-
-
-#LOOK AT SKEWNESS OF VARIABLES
-sk<-data.frame(var=sort(unique(dfs$var)),
-               sk=tapply(dfs$y,dfs$var,function(x) skewness(x,na.rm=TRUE)))
-sk<-sk[order(abs(sk$sk),decreasing=TRUE),]
-
-#TRANSFORM VARIABLES TO OPTIMIZE NORMALITY
-f<-function(d){
-if(unique(d$var)=='her.spnug'){
-    NULL
-    } else { d$y<-transformTukey(d$y,plotit=FALSE)
-         }
-  return(d)
-}
-dfs<-ddply(dfs,.(var),.fun=f)
-
-
-#LOOK AT SKEWNESS OF VARIABLES
-sk<-data.frame(var=sort(unique(dfs$var)),
-               sk=tapply(dfs$y,dfs$var,function(x) skewness(x,na.rm=TRUE)))
-sk<-sk[order(abs(sk$sk),decreasing=TRUE),]
-
-#CONVERT BACK TO LONG FORM
-df<-spread(data=dfs,key=var, value=y)
-
-df2<-data.frame(t(df))
-names(df2)<-df2[1,]
-df2<-df2[-1,]
-
-#histogram(~y | var,data=dfs)
-
-f<-function(d){
-  d$y<-(d$y-mean(d$y,na.rm=TRUE))/sd(d$y,na.rm=TRUE)
-  return(d)
-}
-pdats<-ddply(dfs,.(var),.fun=f)
-
-pdatl<-spread(data=pdats,key=var, value=y)
-
-#cl<-df2 %>%
-#    scale() %>%
-#    dist() %>%
-#    hclust(method='ward.D2')
-#fviz_dend(cl,cex=.5,k=5,palette='jco',horiz=TRUE)
-setwd(figsdir)
-dm<-read.csv('dm.csv',header=TRUE)
-nms<-subset(dm,select=c('var','lbl.short'))
-names(nms)<-c('var','lbl')
-dff2<-pdats
-dff2<-merge(dff2,nms,by=c('var'),all.x=TRUE,all.y=FALSE)
-dff2<-unique(subset(dff2,select=c('var','lbl')))
-dff2$lbl<-ifelse(dff2$var=='her.dvm.rv','Herring diurnal migration',as.character(dff2$lbl))
-dff2<-spread(data=dff2,key=var, value=lbl)
-
-
-dff<-pdatl[,-1]
-dmat<-1-(cor(dff,use='pairwise.complete.obs',method='spearman'))
-#dmat<-abs(cor(dff,use='pairwise.complete.obs',method='spearman'))
-dst<-as.dist(dmat)
-
-
-
-setwd(figsdir)
-#pdf('herring_state_hcluster_spawnar.pdf',height=14,width=10)
-pdf('herring_state_hclusterv3.pdf',height=14,width=10)
-par(mar=c(4,4,4,4),oma=c(1,1,1,1))
-#library(tibble)
-mds<-as.data.frame(cmdscale(dst))
-colnames(mds)<-c('Dim.1','Dim.2')
-p1<-ggscatter(mds,x='Dim.1',y='Dim.2',label=as.character(dff2[1,]),size=2,repel=TRUE,alpha=.5)
-
-#KMEANS CLUSTERING
-dcol<-data.frame(cl=c('orange','firebrick3','forestgreen','dodgerblue3'),clust=seq(1,4,1))
-
-clust <- kmeans(mds, 4)$cluster %>%
-  as.factor()
-mds <- mds %>%
-  mutate(groups = clust)
-# Plot and color by groups
-p2<-ggscatter(mds, x = "Dim.1", y = "Dim.2",
-              label = as.character(dff2[1,]),
-              font.label=c(10,'plain'),
-              color = "groups",
-              #          palette = "jco",
-              palette =as.character(dcol$cl),
-              size = 5,
-              ellipse = TRUE,
-              ellipse.type = "convex",
-              repel = TRUE)
-grid.arrange(p1,p2,ncol=1)
-
-#GETS NAMES OF VARIABLES IN EACH CLUSTER
-cldat<-data.frame(var=names(dff),
-                  clust=clust)
-cldat<-cldat[order(cldat$clust),]
-cldat<-merge(cldat,dcol,by=c('clust'),all=FALSE)
-
-#HCLUST PLOTS
-par(mfrow=c(2,1),mar=c(4,6,1,6))
-hc<-hclust(dst,method='ward.D2')
-sub_grp<-cutree(hc,k=5)
-
-hc2<-as.dendrogram(hc)
-plot(hc2)
-rect.hclust(hc, k = 3, border = 2:5)
-
-
-#PLOT CLUST AS HORIZONTAL
-agh<-as.hclust(hc)
-labelColors = c('red3','royalblue','forestgreen')
-clusMember = cutree(agh, 3)
-# function to get color labels
-colLab <- function(n) {
-  if (is.leaf(n)) {
-    a <- attributes(n)
-    labCol <- labelColors[clusMember[which(names(clusMember) == a$label)]]
-    attr(n, "nodePar") <- c(a$nodePar, lab.col = labCol)
-  }
-  n
-}
-clusDendro = dendrapply(as.dendrogram(agh), colLab)
-nodePar <- list(lab.cex = 0.6, pch = c(NA, 19))
-plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7,pch=16,nodePar=nodePar)
-
-aa<-merge(pdats,cldat,by=c('var'),all.x=TRUE,all.y=FALSE)
-f<-function(d){
-  d<-subset(d,is.na(y)==FALSE)
-  return(data.frame(nindex=length(unique(d$var))))
-}
-odat<-ddply(aa,.(clust,year),.fun=f)
-odat$cx<-rescale(odat$nindex,newrange=c(.5,5))
-odat$aph<-rescale(odat$nindex,newrange=c(.1,.99))
-#points(d3$year,rep(-2.3,dim(d3)[1]),col=alpha('black',d3$aph),pch='|',cex=4)
-
-#GETS AVERAGE CORREALTION, RATE OF CHANGE AND  PLOTS TS FOR EACH CLUSTER
-par(mfrow=c(4,2))
-for(i in 1:4){
-  print(i)
-  cl<-subset(cldat,clust==i)
-  d<-subset(pdatl,select=as.character(cl$var))
-  d2<-na.omit(subset(pdats,var %in% as.character(cl$var)))
-  d3<-subset(odat,clust==i)
-  cr<-cor(d,use='pairwise.complete.obs',method='spearman')
-  cr.r<-round(cr,digits=2)
-  cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
-  combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
-  cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
-  cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
-  print(mean(cr.t$Freq))
-  mod<-gamm(y~year,data=d2,random=list(var=~1))
-  modf<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
-  mods<-gamm(y~s(year),data=d2,random=list(var=~1))
-  pdat<-data.frame(year=sort(unique(d2$year)))
-  pdatsm<-data.frame(year=seq(min(d2$year),max(d2$year),length.out=1000))
-  psm<-predict(mods$gam,newdata=pdatsm,se.fit=TRUE)
-  pdatsm$p<-psm$fit
-  pdatsm$se<-psm$se.fit
-  pdatsm$upr<-pdatsm$p+(1.96*pdatsm$se)
-  pdatsm$lwr<-pdatsm$p-(1.96*pdatsm$se)
-  p<-predict(modf$gam,newdata=pdat,se.fit=TRUE)
-  pdat$p<-p$fit
-  pdat$se<-p$se.fit
-  pdat$upr<-pdat$p+(1.96*p$se)
-  pdat$lwr<-pdat$p-(1.96*p$se)
-  plot(pdat$year,pdat$p,las=1,pch=15,xlim=c(1965,2017),ylim=c(-2,1.5),col=alpha(unique(as.character(cl$cl)),.9),cex=1.75,xaxt='n',xlab='Year',ylab='Mixed model average')
-  #points(pdat$year,pdat$p,pch=0,col=alpha(unique(as.character(cl$cl)),1),cex=1.75)
-  points(d3$year,rep(-2.3,dim(d3)[1]),col=alpha('black',d3$aph),pch='|',cex=4)
-  axis(1,seq(1965,2017,5))
-  abline(h=0,lty=2)
-  #polygon(c(pdatsm$year,pdatsm$year[length(pdatsm$year):1]),c(pdatsm$upr,pdatsm$lwr[length(pdatsm$lwr):1]),col=alpha(as.character(unique(cl$cl)),.3),border=NA)
-  s<-summary(mod$gam)
-  r2<-round(s$r.sq,digits=2)
-  f2<-function(g){lines(c(g$year,g$year),c(g$upr,g$lwr),col=alpha(unique(as.character(cl$cl)),.5),lwd=1.25)}
-  zz<-dlply(pdat,.(year),.fun=f2)
-  legend('topright',c(paste('r2=',r2),paste('av r=',round(mean(cr.t$Freq),digits=2))),bty='n')
-  #lines(pdatsm$year,pdatsm$p,col=unique(as.character(cl$cl)),lwd=2)
-}
-
-#GETS AVERAGE CORREALTION, RATE OF CHANGE AND  PLOTS TS FOR EACH CLUSTER
-par(mfrow=c(4,2))
-for(i in 1:4){
-  print(i)
-  cl<-subset(cldat,clust==i)
-  d<-subset(pdatl,select=as.character(cl$var))
-  d3<-subset(odat,clust==i)
-  d2<-na.omit(subset(pdats,var %in% as.character(cl$var)))
-  cr<-cor(d,use='pairwise.complete.obs',method='spearman')
-  cr.r<-round(cr,digits=2)
-  cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
-  combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
-  cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
-  cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
-  print(mean(cr.t$Freq))
-  mod<-gamm(y~year,data=d2,random=list(var=~1))
-  modf<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
-  mods<-gamm(y~s(year),data=d2,random=list(var=~1))
-  pdat<-data.frame(year=sort(unique(d2$year)))
-  pdatsm<-data.frame(year=seq(min(d2$year),max(d2$year),length.out=1000))
-  psm<-predict(mods$gam,newdata=pdatsm,se.fit=TRUE)
-  pdatsm$p<-psm$fit
-  pdatsm$se<-psm$se.fit
-  pdatsm$upr<-pdatsm$p+(1.96*pdatsm$se)
-  pdatsm$lwr<-pdatsm$p-(1.96*pdatsm$se)
-  p<-predict(modf$gam,newdata=pdat,se.fit=TRUE)
-  pdat$p<-p$fit
-  pdat$se<-p$se.fit
-  pdat$upr<-pdat$p+(1.96*p$se)
-  pdat$lwr<-pdat$p-(1.96*p$se)
-  plot(pdat$year,pdat$p,las=1,pch=15,xlim=c(1965,2017),ylim=c(-1.5,1.5),col='black',xaxt='n',xlab='Year',ylab='Mixed model average',cex=1.75)
-  points(d3$year,rep(-2.3,dim(d3)[1]),col=alpha('black',d3$aph),pch='|',cex=4)
-  axis(1,seq(1965,2017,5))
-  abline(h=0,lty=2)
-  #polygon(c(pdatsm$year,pdatsm$year[length(pdatsm$year):1]),c(pdatsm$upr,pdatsm$lwr[length(pdatsm$lwr):1]),col=alpha(as.character(unique(cl$cl)),.3),border=NA)
-  s<-summary(mod$gam)
-  r2<-round(s$r.sq,digits=2)
-  f2<-function(g){    lines(c(g$year,g$year),c(g$upr,g$lwr),col=alpha('black',.25))}
-  zz<-dlply(pdat,.(year),.fun=f2)
-  legend('topright',c(paste('r2=',r2),paste('av r=',round(mean(cr.t$Freq),digits=2))),bty='n')
-  #lines(pdatsm$year,pdatsm$p,col='black',lwd=2)
-}
-
-
-
-
-
-##########################################################
-
-#  FITS TIMESERIES MODELS TO NORMALIZED SERIES
-dati<-pdatl
-dati$her.spcv<-dati$her.spcv*-1
-dati$her.spvar<-dati$her.spvar*-1
-dati$her.spnug<-dati$her.spnug*-1
-
-df<-dati %>% gather(var,y,-year)
-
-f<-function(d){
-  print(unique(d$var))
-  d<-na.omit(d)
-  modlm<-lm(y~year,data=d)
-  slm<-summary(modlm)
-  d$resid<-residuals(modlm)
-  t<-ts(d$resid)
-  acpar<-mean(acf(t,plot=F)$acf[2])
-
-  mod<-gls(y~year,data=d,method='ML',correlation=corAR1(acpar, form = ~year))
-  s<-summary(mod)
-
-  #modg<-gamm(y~s(year),data=d,correlation=corCAR1(value=acpar, form = ~year))
-  modg<-gamm(y~s(year,k=7),data=d,correlation=corCAR1(form = ~year),gamma=1)
-  sg<-summary(modg$gam)
-  #plot(d$year,d$y,xlab='Year',ylab='Z-score',las=1,pch=15)
-  #legend('topright',unique(d$var),bty='n')
-  pdat<-data.frame(year=seq(min(d$year),max(d$year),1))
-  pdat$p<-predict(modg$gam,newdata=pdat)
-  #lines(pdat$year,pdat$p)
-  return(round(data.frame(b=slm$coef[2,1],
-                          pv=slm$coef[2,4],
-                          bgls=s$tTable[2,1],
-                          pvgls=s$tTable[2,4],
-                          pvgam=sg$s.table[1,4]),digits=3))
-}
-#setwd(figsdir)
-#pdf('herring_indices_timetrends_v2.pdf',height=10,width=10)
-#par(mfrow=c(4,4),mar=c(4,4,1,1))
-ot<-ddply(df,.(var),.fun=f,.progress='text')
-#dev.off()
-
-
-ot<-ot[order(ot$pvgam),]
-#write.csv(ot,file='herring_indices_timetrends.csv',row.names=FALSE)
-
-s<-subset(ot,pv<0.05)
-s2<-subset(ot,pvgls<0.05)
-s3<-subset(ot,pvgam<0.05)
-s3<-subset(ot,pvgam<0.1 | pv<.05)
-
-
-
-dff<-pdatl[,-1]
-setwd(figsdir)
-dm<-read.csv('dm.csv',header=TRUE)
-nms<-subset(dm,select=c('var','lbl.short'))
-names(nms)<-c('var','lbl')
-dff2<-pdats
-dff2<-merge(dff2,nms,by=c('var'),all.x=TRUE,all.y=FALSE)
-dff2<-unique(subset(dff2,select=c('var','lbl')))
-dff2$lbl<-ifelse(dff2$var=='her.dvm.rv','Herring diurnal migration',as.character(dff2$lbl))
-dff2<-spread(data=dff2,key=var, value=lbl)
-
-dmat<-1-(cor(dff,use='pairwise.complete.obs',method='spearman'))
-dst<-as.dist(dmat)
-
-
-mds<-as.data.frame(cmdscale(dst))
-colnames(mds)<-c('Dim.1','Dim.2')
-mds$var<-rownames(mds)
-mds<-merge(mds,ot,by=c('var'),all=TRUE)
-mds$cl<-ifelse(mds$pvgam<=.1,'gold3','gray30')
-mds$cl<-ifelse(mds$pvgam<=.05,'firebrick3',mds$cl)
-
-
-p2<-ggscatter(mds,x='Dim.1',y='Dim.2',label=as.character(dff2[1,]),size=5,repel=TRUE,alpha=1,color=mds$cl,font.label=c(14,'plain','gray50'))
-#p2<-ggscatter(mds,x='Dim.1',y='Dim.2',label='',size=5,repel=TRUE,alpha=1,color=mds$cl,font.label=c(14,'plain','gray50'))
-
-clust <- kmeans(mds, 4)$cluster %>%
-  as.factor()
-mds <- mds %>%
-  mutate(groups = clust)
-p1<-ggscatter(mds, x = "Dim.1", y = "Dim.2",
-              label = as.character(dff2[1,]),
-              color = "groups",
-              palette=rep('gray20',4),
-              font.label = c(12, "plain"),
-              size = 1,
-              ellipse = TRUE,
-              ellipse.type = "convex",
-              repel = TRUE)
-mds2<-data.frame(dim1=mds$Dim.1,
-                 dim2=mds$Dim.2,
-                 cl=mds$cl)
-p1<-p1+
-  geom_point(data=mds2,aes(x=dim1,y=dim2),size=4,alpha=1,color=mds2$cl)
-grid.arrange(p2,p1,ncol=1)
-
-
-d<-pdatl
-d<-d[,!(names(d)%in% c('year'))]
-dt<-cor(d,use='pairwise.complete.obs',method='spearman')
-cls<-brewer.pal(5,'Spectral')
-cls<-colorRampPalette(cls)(100)
-ord<-order(dt[1,])
-data.ord<-dt[ord,ord]
-par(mfrow=c(1,1))
-plotcorr(data.ord,col=cls[data.ord*50+50],mar=c(1,1,1,1), numbers=FALSE)
-dev.off()
-
-
-
-
-
-
-library(GGally)
-setwd(figsdir)
-pdf('prac.pdf',width=12,height=12)
-ggcorr(d, method = c("pairwise.complete.obs", "pearson"),label=TRUE,label_round=2,label_size=3,layout.exp=0)+
-theme(axis.text.y = element_text(hjust=0))+
-theme(axis.text.x = element_text(hjust=0))
-dev.off()
-
-cr<-cor(d,use='pairwise.complete.obs',method='spearman')
-cr.r<-round(cr,digits=2)
-cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
-combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
-    cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
-cr.t<-cr.t[order(abs(cr.t$Freq),decreasing=TRUE),]
-cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
-
-plot(pdatl$year,pdatl$herlrv.mn.bof,pch=15)
-plot(data$year,data$herlrv.mn.bof,pch=15,xlim=c(1970,2005),type='b')
-
-
-setwd(figsdir)
-pdf('herring_state_hcluster_heatmap.pdf',height=8,width=12)
-#pdf('herring_state_hcluster_heatmap_spawnar.pdf',height=8,width=12)
-#PLOTS OUT 2D CLUSTER OF SELECTED VARIABLES
-#ALL DATA
-pdatll<-subset(pdatl,year<=2014)
-pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
-
-pdatl2<-data.frame(t(pdatll))
-names(pdatl2)<-pdatl2[1,]
-pdatl2<-pdatl2[-1,]
-
-pheatmap(pdatl2,cutree_cols=2,cutree_rows=3,clustering_method='ward.D')
-
-#CLUSTERING BASED ON ABSOLUTE CORRELATION MATRIX
-dmat2<-abs(cor(dff,use='pairwise.complete.obs',method='spearman'))
-pheatmap(dmat2,cutree_cols=2,cutree_rows=2,clustering_method='ward.D2')
-
-#CLUSTERING BASED ON CORRELATION MATRIX
-dmat2<-(cor(dff,use='pairwise.complete.obs',method='spearman'))
-pheatmap(dmat2,cutree_cols=3,cutree_rows=3,clustering_method='ward.D2')
-
-#ONLY DATA THAT CLUSTER TOGETHER; NEED TO INSPECT TO ENSURE GETTING RIGHT CLSUTERS
-a<-subset(cldat,clust %in% c(1,3))
-pdatll<-subset(pdatl,year<=2014,select=c('year',as.character(a$var),'her.prod','her.metai.rv'))
-#pdatll<-pdatll[order(pdatll$year,decreasing=TRUE),]
-pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
-pdatl2<-data.frame(t(pdatll))
-names(pdatl2)<-pdatl2[1,]
-pdatl2<-pdatl2[-1,]
-
-pheatmap(pdatl2,cutree_cols=2,cutree_rows=5,clustering_method='ward.D')
-
-
-
-#ONLY DATA THAT CLUSTER TOGETHER; NEED TO INSPECT TO ENSURE GETTING RIGHT CLSUTERS
-a<-subset(cldat,clust %in% c(1,3))
-a<-subset(a,!(var %in% c('herjuv.totwgt.rv','herjuv.totno.rv','her.totno.rv','her.tbio')))
-pdatll<-subset(pdatl,year<=2014,select=c('year',as.character(a$var),'her.prod','her.metai.rv'))
-pdatll$her.spcv<-pdatll$her.spcv*-1
-pdatll$her.spvar<-pdatll$her.spvar*-1
-pdatll$her.spnug<-pdatll$her.spnug*-1
-#pdatll<-pdatll[order(pdatll$year,decreasing=TRUE),]
-pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
-pdatl2<-data.frame(t(pdatll))
-names(pdatl2)<-pdatl2[1,]
-pdatl2<-pdatl2[-1,]
-
-pheatmap(pdatl2,cutree_cols=2,cutree_rows=6,clustering_method='ward.D')
-
-
-#TRANSFORM SO ALL INDICES MOVE IN SAME DIRECTION
-a<-subset(cldat,clust %in% c(1,3))
-a<-subset(a,!(var %in% c('herjuv.totwgt.rv','herjuv.totno.rv','her.totno.rv','her.tbio')))
-pdatll<-subset(pdatl,year<=2014,select=c('year',as.character(a$var),'her.prod','her.metai.rv'))
-#pdatll<-pdatll[order(pdatll$year,decreasing=TRUE),]
-#pdatll$herjuv.totwgt.rv<-pdatll$herjuv.totwgt.rv*-1
-#pdatll$herjuv.totno.rv<-pdatll$herjuv.totno.rv*-1
-#pdatll$her.totwgt.rv<-pdatll$her.totwgt.rv*-1
-#pdatll$her.totno.rv<-pdatll$her.totno.rv*-1
-pdatll$her.spcv<-pdatll$her.spcv*-1
-pdatll$her.spvar<-pdatll$her.spvar*-1
-pdatll$her.spnug<-pdatll$her.spnug*-1
-
-pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
-pdatl2<-data.frame(t(pdatll))
-names(pdatl2)<-pdatl2[1,]
-pdatl2<-pdatl2[-1,]
-
-pheatmap(pdatl2,cutree_cols=2,cutree_rows=6,clustering_method='ward.D')
-
-#CLUSTERING BASED ON CORRELATION MATRIX
-pdatll<-pdatll[,-1]
-dmat2<-(cor(pdatll,use='pairwise.complete.obs',method='spearman'))
-pheatmap(dmat2,cutree_cols=3,cutree_rows=3,clustering_method='ward.D2')
-
-dev.off()
-
-
-
-
-#GETS AVERAGE CORREALTION, RATE OF CHANGE AND  PLOTS TS FOR EACH CLUSTER
-cldat2<-subset(cldat,clust %in% c(1,3))
-cldat2<-subset(cldat2,!(var %in% c('herjuv.totwgt.rv','herjuv.totno.rv','her.totno.rv')))
-
-cldat2$clust<-ifelse(cldat2$var %in% c('her.georng','her.totwgt.rv'),1,6)
-cldat2$clust<-ifelse(cldat2$var %in% c('her.ajrat.rv'),2,cldat2$clust)
-cldat2$clust<-ifelse(cldat2$var %in% c('her.spnut','her.spcv','her.spvar'),3,cldat2$clust)
-cldat2$clust<-ifelse(cldat2$var %in% c('her.szpe.rv','herjuv.fmass.rv','her.cf.rv','her.fmass.rv','her.len.rv','her.ssb','her.waa'),4,cldat2$clust)
-cldat2$clust<-ifelse(cldat2$var %in% c('herlrv.len','herjuv.metai.rv','her.metai.rv'),5,cldat2$clust)
-
-setwd(figsdir)
-pdf('herring_heatmaps_timetrends.pdf',height=8.5,width=7)
-par(mfrow=c(3,2))
-for(i in 1:6){
-  print(i)
-  cl<-subset(cldat2,clust==i)
-  d<-subset(pdatl,select=as.character(cl$var))
-  d2<-na.omit(subset(pdats,var %in% as.character(cl$var)))
-  if(i==3){d2$y<-d2$y*-1
-  } else NULL
-
-  ylm<-c(-2,2)
-  xlm<-c(1965,2017)
-  if(length(unique(d2$var))>1){
-    cr<-cor(d,use='pairwise.complete.obs',method='spearman')
-    cr.r<-round(cr,digits=2)
-    cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
-    combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
-    cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
-    cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
-    print(mean(cr.t$Freq))
-    mod<-gamm(y~year,data=d2,random=list(var=~1))
-    modf<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
-    mods<-gamm(y~s(year),data=d2,random=list(var=~1))
-    pdat<-data.frame(year=sort(unique(d2$year)))
-    pdatsm<-data.frame(year=seq(min(d2$year),max(d2$year),length.out=1000))
-    psm<-predict(mods$gam,newdata=pdatsm,se.fit=TRUE)
-    pdatsm$p<-psm$fit
-    pdatsm$se<-psm$se.fit
-    pdatsm$upr<-pdatsm$p+(1.96*pdatsm$se)
-    pdatsm$lwr<-pdatsm$p-(1.96*pdatsm$se)
-    p<-predict(modf$gam,newdata=pdat,se.fit=TRUE)
-    pdat$p<-p$fit
-    pdat$se<-p$se.fit
-    pdat$upr<-pdat$p+(1.96*p$se)
-    pdat$lwr<-pdat$p-(1.96*p$se)
-    plot(pdat$year,pdat$p,las=1,pch=15,xlim=xlm,ylim=ylm,col='black',xaxt='n',xlab='Year',ylab='',axes=FALSE,pt.cex=.7)
-    axis(1,seq(1965,2015,5))
-    axis(4,c(ylm[1],ylm[2]),las=1)
-    abline(h=0,lty=2)
-    s<-summary(mod$gam)
-    r2<-round(s$r.sq,digits=2)
-    f2<-function(g){    lines(c(g$year,g$year),c(g$upr,g$lwr),col=alpha('black',.15))}
-    zz<-dlply(pdat,.(year),.fun=f2)
-    legend('topright',c(paste('r2=',r2),paste('av r=',round(mean(cr.t$Freq),digits=2))),bty='n')
-    #lines(pdatsm$year,pdatsm$p,col='black',lwd=2)
-  } else {
-    plot(d2$year,d2$y,las=1,pch=15,xlim=xlm,ylim=ylm,col='black',xaxt='n',xlab='Year',ylab='',axes=FALSE,pt.cex=.7)
-    axis(1,seq(1965,2015,5))
-    axis(4,c(ylm[1],ylm[2]),las=1)
-    abline(h=0,lty=2)
-  }
-}
-dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#################################################
-
-######### HERRING STATE DERIVATION
-setwd(datadir)
-load('SPERA_andata_new.RData')
-
-#LOAD LANDINGS FROM FAO
-d<-read.csv('N:/cluster_2017/scratch/spera/data/stagingdat/fao_fish_landings/TS_FI_CAPTURE.csv',header=TRUE)
-spc<-read.csv('N:/cluster_2017/scratch/spera/data/stagingdat/fao_fish_landings/CL_FI_SPECIES_GROUPS.csv',header=TRUE)
-names(d)<-tolower(names(d))
-names(spc)<-tolower(names(spc))
-names(spc)[1]<-'species'
-dher<-subset(d,species=='HER' & country==124)
-
-d<-subset(dher,select=c('year','quantity'))
-names(d)[2]<-'her.land2'
-data<-merge(data,d,by=c('year'),all.x=TRUE,all.y=FALSE)
-
-
-#SELECT VARIABLES FOR STATE CALCULATION: ADD PRODUCTION EVEN THOUGH NOT IN CLUSTERS; REMOVE TOTAL BIOMASS BECAUSE CORRELATED WITH SSB
-a<-subset(cldat,clust %in% c(3,4))
-#dat<-subset(data,year>=1965,select=c('year','her.ajrat.rv','her.prod','her.metai.rv',as.character(a$var)))
-dat<-subset(data,year>=1965,select=c('year','her.prod','her.metai.rv',as.character(a$var)))
-#dat<-dat[,!(names(dat) %in% c('her.totwgt.rv','her.totno.rv','herjuv.totno.rv','herjuv.totwgt.rv','her.georng','her.tbio','her.prod','her.metai.rv'))]
-dat<-dat[,!(names(dat) %in% c('her.totno.rv','herjuv.totno.rv','herjuv.totwgt.rv','her.tbio','her.state'))]
-
-#abs(round(cor(dat,use='pairwise.complete.obs'),digits=2))
-(round(cor(dat,use='pairwise.complete.obs'),digits=2))
-
-#EXPONENTIAL TRANSFORM TO 'NORMALIZE'
-f<-function(x){transformTukey(x,plotit=FALSE)}
-dat<-data.frame(cbind(subset(dat,select='year'),apply(dat[,2:dim(dat)[2]],2,f)))
-
-f<-function(x){scale(x,center=TRUE,scale=TRUE)}
-dat<-data.frame(cbind(subset(dat,select='year'),apply(dat[,2:dim(dat)[2]],2,f)))
-
-#TRANSFORM TO ENSURE GAUSSIAN DISTRIBUTION
-#dat$her.spcv<-dat$her.spcv*-1
-#dat$her.spvar<-dat$her.spvar*-1
-dat$her.spnug<-dat$her.spnug*-1
-
-dats<-dat %>% gather(var,y,-year)
-#bb<-na.omit(bb)
-xyplot(y~year | var,data=dats,pch=15,type=c('p','l'))
-histogram(~y | var,data=dats)
-dats<-subset(dats,is.na(y)==FALSE)
-
-d<-subset(dats,!(var %in% c('her.totwgt.rv','her.georng')))
-mod<-gamm(y~as.factor(year),data=d,random=list(var=~1))
-pdat<-data.frame(year=sort(unique(d$year)))
-p<-predict(mod$gam,newdata=pdat,se.fit=TRUE)
-pdat$her.state<-p$fit
-pdat$her.state.se<-p$se.fit
-plot(pdat$year,pdat$her.state,pch=15)
-dat<-merge(dat,pdat,by=c('year'),all=TRUE)
-
-d2<-subset(dats,!(var %in% c('her.totwgt.rv','her.georng','her.ssbc','her.rec1','her.prod')))
-mod2<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
-pdat2<-data.frame(year=sort(unique(d2$year)))
-p2<-predict(mod2$gam,newdata=pdat2,se.fit=TRUE)
-pdat2$her.state<-p2$fit
-pdat2$her.state.se<-p2$se.fit
-plot(pdat2$year,pdat2$her.state,pch=15)
-plot(pdat$her.state,pdat2$her.state)
-dat2<-pdat
-
-
-cr<-cor(dat,use='pairwise.complete.obs',method='spearman')
-cr.r<-round(cr,digits=2)
-cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
-combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
-cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
-cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
-cr.t<-subset(cr.t,!(Var2 %in% c('year','her.state.se')) & !(Var1 %in% c('year','her.state.se')))
-
-cr.t<-cr.t[order(cr.t$Freq,decreasing=TRUE),]
-cr.t$Var1<-as.character(cr.t$Var1)
-cc<-data.frame(var1=sort(unique(cr.t$Var1)),
-               r=tapply(cr.t$Freq,cr.t$Var1,mean))
-
-#AVERAGE CORRELATION OF 'STATE' VARIABLES
-cc<-subset(cr.t,Var1!='her.state' & Var2!='her.state')
-mean(cc$Freq);#.47
-median(cc$Freq);#.51
-#mdr<-round(median(cc$Freq),digits=2)
-#MEAN=0.54; MEDIAN=0.56
-
-
-f<-function(d){
-  mod<-lm(y~year,data=d)
-  s<-summary(mod)
-  return(data.frame(b=s$coef[2,1]))
-}
-od<-ddply(dats,.(var),.fun=f)
-
-#COLOR SCHEME
-od$bc<-cut(od$b,breaks=seq(-.081,.081,length.out=21))
-rdat<-data.frame(x=seq(-max(abs(od$b)),max(abs(od$b)),length.out=10000))
-rdat$bc<-cut(rdat$x,breaks=seq(-.081,.081,length.out=21))
-rdat<-unique(subset(rdat,select=c('bc')))
-#cl<-colorRampPalette(c(blue2red(9),'darkred'))
-cl<-colorRampPalette(c('magenta4',blue2red(9),'red3','darkred'))
-rdat$cl<-cl(20)
-#plot(seq(1,20,1),seq(1,20,1),col=as.character(rdat$cl),pch=15)
-od<-merge(od,rdat,by=c('bc'),all.x=TRUE,all.y=FALSE)
-
-dats<-merge(dats,od,by=c('var'),all.x=TRUE,all.y=FALSE)
-
-
-#cls<-colorRampPalette(c('black','darkmagenta','hotpink','darkblue','lightskyblue','forestgreen','lawngreen','gold','orange','firebrick1','firebrick4'))
-#n<-length(unique(dats$var))
-#dum3<-data.frame(var=sort(unique(dats$var)),
-#                 cls=cls(n+2)[3:(n+2)])
-#dats<-merge(dats,dum3,by=c('var'),all.x=TRUE,all.y=FALSE)
-od<-od[order(od$b),]
-
-setwd(figsdir)
-pdf('herring_state_derivation_transform_v2.pdf',height=8,width=4)
-par(mfrow=c(9,2),mar=c(.5,1,0,0),oma=c(4,4,1,4))
-vr<-od$var
-for(i in 1:length(vr)){
-  d<-subset(dats,var==vr[i])
-  d<-na.omit(d)
-  ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
-  print(ylm)
-  asp<-aspline(d$year,d$y,xout=seq(min(d$year),max(d$year),length.out=1000))
-  plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE)
-  abline(h=0,col='black',lty=2,lwd=.5)
-  lines(asp$x,asp$y,col=alpha(as.character(unique(d$cl)),1),lwd=2)
-  points(d$year,d$y,col=alpha(as.character(unique(d$cl)),.3),cex=1,pch=16)
-  axis(2,at=ylm,las=1,cex.axis=.5,lwd=.1)
-  if(unique(d$var) %in% c('her.totwgt.rv','her.georng')){
-    axis(1,seq(1965,2015,5),labels=FALSE,cex.axis=.5,lwd=.1)
-    axis(1,seq(1965,2015,10),cex.axis=.5,lwd=.1)
-  } else NULL
-  mod<-lm(y~year,data=d)
-  pdat<-data.frame(year=seq(min(d$year),max(d$year),length.out=1000))
-  pdat$p<-predict(mod,newdata=pdat)
-  #lines(pdat$year,pdat$p,col=alpha('black',.5),lwd=.5)
-  s<-summary(mod)
-  b<-round(s$coef[2,1],digits=2)
-  legend('topright',gsub(' ','',paste(unique(d$var),'=',b)),bty='n',cex=.5)
-}
-
-
-
-dats$segtrue<-ifelse(dats$var%in% c('herjuv.fmass.rv','her.ajrat.rv'),FALSE,TRUE)
-#dats$segtrue<-TRUE
-
-par(mfrow=c(9,2),mar=c(.5,1,0,0),oma=c(4,4,1,4))
-vr<-od$var
-l<-list()
-for(i in 1:length(vr)){
-  d<-subset(dats,var==vr[i])
-  d<-na.omit(d)
-  #CHARACTERIZE TRENDS
-  if(length(unique(d$year))<=10){dff<-4
-  } else {dff<-5
-  }
-  bp<-floor(mean(d$year))
-  modl<-lm(y~year,data=d)
-  m<-breakpoints(y~year,data=d,h=3,breaks=1)
-  modst<-lm(y~breakfactor(m,breaks=length(unique(m$breakpoints))),data=d)
-  modnl<-lm(y~bs(year,degree=3,df=dff),data=d)
-  if(unique(d$segtrue)==TRUE){
-    modseg<-segmented(modl,seg.Z = ~year,psi=bp,control=seg.control(it.max=200))
-    dt<-data.frame(AIC(modl,modnl,modseg,modst))
-  } else {rm(modseg)
-    dt<-data.frame(AIC(modl,modnl,modst))
-  }
-  names(dt)<-ifelse(names(dt) %in% c('BIC'),'AIC',names(dt))
-  dt$md<-rownames(dt)
-  dt$AIC<-ifelse(dt$md=='modnl',dt$AIC+4,dt$AIC)
-  dt$AIC<-ifelse(dt$md=='modst',dt$AIC,dt$AIC)
-  dt$AIC<-ifelse(dt$md=='modseg',dt$AIC-2,dt$AIC)
-  dt$AIC<-ifelse(dt$md=='modl',dt$AIC,dt$AIC)
-  dt<-subset(dt,AIC==min(dt$AIC))
-  mtype<-dt$md
-
-  if(dt$md=='modnl'){
-    modl<-modnl
-    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
-    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
-  } else if (dt$md=='modseg'){
-    modl<-modseg
-    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
-    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
-  } else if (dt$md=='modst'){
-    modl<-modst
-    d2<-data.frame(year=sort(unique(d$year)))
-    d3<-data.frame(year=sort(unique(d$year)))
-  } else {
-    modl<-modl
-    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
-    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
-  }
-
-  p<-predict(modl,newdata=d3,se.fit=TRUE,type='response')
-  d3$p<-p$fit
-  d3$se<-p$se.fit
-  d3$upr<-d3$p+(1.96*d3$se)
-  d3$lwr<-d3$p-(1.96*d3$se)
-
-  s<-summary(modl)
-  r2<-round(s$r.squared,digits=2)
-  p<-predict(modl,newdata=d2,se.fit=TRUE,type='response')
-  d2$p<-p$fit
-  d2$se<-p$se.fit
-  d2$upr<-d2$p+(1.96*d2$se)
-  d2$lwr<-d2$p-(1.96*d2$se)
-  ylm<-c(min(c(d$y,d2$lwr)),max(c(d$y,d2$upr)))
-
-  ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
-  plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE)
-  polygon(c(d2$year,d2$year[length(d2$year):1]),c(d2$upr,d2$lwr[length(d2$lwr):1]),col=alpha(as.character(unique(d$cl)),.3),border=NA)
-  abline(h=0,col='black',lty=2,lwd=.5)
-  points(d$year,d$y,col=alpha(as.character(unique(d$cl)),.3),cex=1,pch=16)
-  axis(2,at=ylm,las=1,cex.axis=.5,lwd=.1)
-  if(unique(d$var) %in% c('her.totwgt.rv','her.georng')){
-    axis(1,seq(1965,2015,5),labels=FALSE,cex.axis=.5,lwd=.1)
-    axis(1,seq(1965,2015,10),cex.axis=.5,lwd=.1)
-  } else NULL
-  lines(d2$year,d2$p,col=as.character(unique(d$cl)),lwd=2)
-  s<-summary(modl)
-  r2<-round(s$r.squared,digits=2)
-  legend('topright',gsub(' ','',paste(unique(d$var),'=',r2)),bty='n',cex=.5)
-  d2$year<-round(d2$year,digits=0)
-  dout<-d3
-  dout$chng<-dout$p[1]-dout$p[length(dout$p)]
-  dout$var<-vr[i]
-
-  #GET BREAKPOINT
-  if(dt$md=='modst'){
-    dm<-data.frame(m$X)
-    dm$id<-seq(1,dim(dm)[1],1)
-    dm$bp<-breakfactor(m,breaks=length(unique(m$breakpoints)))
-    dout$bpt<-max(subset(dm,bp=='segment1')$year)
-  } else if (dt$md=='modseg'){
-    dout$bpt<-round(data.frame(modseg$psi)$Est.,digits=0)
-  } else {
-    dout$bpt<-subset(d2,p==max(d2$p))$year[1]
-  }
-  dout<-data.frame(dout)
-  dout$md<-dt$md
-  l[[i]]<-dout
-}
-z<-data.frame(do.call('rbind',l))
-#ddply(dats,.(var),.fun=f)
-z<-z[order(z$chng),]
-
-#IF BREAK IS A MINIMUM, TAKE START OF LINEAR CHANGE INSTEAD
-f<-function(d){
-  pbt<-subset(d,year==unique(d$bpt))
-  if(pbt$p<=mean(d$p)){
-    bpt<-subset(d,p==max(d$p))$year[1]
-  } else { bpt<-unique(d$bpt)
-  }
-
-  if(unique(d$var)=='her.metai.rv'){
-    bpt<-min(d$year,na.rm=TRUE)
-  } else  bpt<-bpt
-
-  d$bpt<-bpt
-  return(d)
-}
-z<-ddply(z,.(var),.fun=f)
-
-plot(seq(1,20,1),seq(1,20,1),col='white',pch=15)
-colorbar.plot(10,10,col=as.character(rdat$cl),strip=seq(-.081,0.081,length.out=20),strip.width=.05,strip.length=.75)
-dev.off()
-
-
-
-###FORMAT CHANGEPOINTS AND WRITE TO FILE
-a<-unique(subset(z,!(var %in% c('her.totwgt.rv','her.georng')),select=c('bpt','var','md')))
-a<-a[order(a$bpt,decreasing=TRUE),]
-a$id<-seq(1,dim(a)[1],1)
-a$lbl<-c( 'Herring weight-at-age','Herring SSB','Herring spatial variance','Juvenile herring metabolic rate','Herring productivity','Average mass of herring','Hering spatial covariance','Average length of herring','Average length of herrng larve','Average mass of juvenile herring','Ratio of adult to juvenile herring','Herring condition factor','Herring metabolic rate','Small-scale spatial variance of herring','Size evenness of herring','Recruitment at age 1')
-a$bpt2<-ifelse(a$var=='her.cf.rv',1969,a$bpt)
-a$bpt2<-ifelse(a$var=='her.ajrat.rv',1967,a$bpt2)
-a$bpt2<-ifelse(a$var=='her.szpe.rv',1968,a$bpt2)
-a$bpt2<-ifelse(a$var=='herlrv.len',1974,a$bpt2)
-a$bpt2<-ifelse(a$var=='her.metai.rv',1966,a$bpt2)
-a$cl<-ifelse(a$var %in% c('her.waa','her.metai.rv','herjuv.metai.rv','her.cf.rv'),'dodgerblue3',NA)
-a$cl<-ifelse(a$var %in% c('her.ssbc','her.prod'),'firebrick3',a$cl)
-a$cl<-ifelse(a$var %in% c('her.spvar','her.spcv','her.spnug'),'forestgreen',a$cl)
-a$cl<-ifelse(a$var %in% c('her.fmass.rv','her.len.rv','herjuv.fmass.rv'),'pink',a$cl)
-a$cl<-ifelse(a$var %in% c('her.rec1','herlrv.len'),'gold',a$cl)
-a$cl<-ifelse(a$var %in% c('her.ajrat.rv','her.szpe.rv','her.ajrat.rv'),'gray',a$cl)
-write.csv(a,'changepoints.csv',row.names=FALSE)
-
-
-
-
-
-
-
-setwd(figsdir)
-pdf('herring_state_derivation_heatmap.pdf',height=8,width=12)
-p1<-ggplot()+
-  geom_tile(data=z, aes(x=year, y=as.factor(var),fill=p),col='gray80')+
-  scale_fill_distiller(palette='Spectral')+
-  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),legend.position=c(.1,.2),plot.background=element_blank(),axis.line = element_line(color = 'black'), legend.key.size =  unit(0.15, "in"),legend.text=element_text(size=6))
-grid.arrange(p1,ncol=1)
-
-
-
-a<-unique(subset(z,select=c('bpt','var')))
-a<-a[order(a$bpt,decreasing=TRUE),]
-a$id<-seq(1,dim(a)[1],1)
-
-z<-merge(z,a,by=c('var'),all.x=TRUE,all.y=FALSE)
-z<-z[order(z$id),]
-names(a)[1]<-'year'
-
-ggplot()+
-  geom_tile(data=z, aes(x=year, y=id,fill=p),col='gray80')+
-  geom_tile(data=a,aes(x=year,y=id,fill=NULL,alpha=0))+
-  scale_fill_distiller(palette='Spectral')+
-  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),legend.position=c(.09,.5),plot.background=element_blank(),axis.line = element_line(color = 'black'), legend.key.size =  unit(0.15, "in"),legend.text=element_text(size=6))+
-  scale_x_continuous(expand=c(0,0),breaks=seq(1965,2015,5),labels=seq(1965,2015,5))+
-  scale_y_continuous(expand=c(0,0),breaks=seq(1,16,1),labels=a$var)+
-  expand_limits(x=c(1964.5,2016),y=c(0,17))+
-  xlab('Year')+
-  ylab('Landings [%]')
-
-#TRANSFORM SO ALL INDICES MOVE IN SAME DIRECTION
-pdatll<-subset(dat,year<=2014)
-pdatll<-pdatll[,!(names(pdatll) %in% c('her.state.se','her.state'))]
-
-pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
-pdatl2<-data.frame(t(pdatll))
-names(pdatl2)<-pdatl2[1,]
-pdatl2<-pdatl2[-1,]
-
-pheatmap(pdatl2,cutree_cols=2,cutree_rows=5,clustering_method='ward.D')
-
-#CLUSTERING BASED ON CORRELATION MATRIX
-pdatll<-pdatll[,-1]
-dmat2<-(cor(pdatll,use='pairwise.complete.obs',method='spearman'))
-pheatmap(dmat2,cutree_cols=3,cutree_rows=3,clustering_method='ward.D2')
-
-a$year2<-ifelse(a$var=='her.cf.rv',1969,a$year)
-a$year2<-ifelse(a$var=='her.ajrat.rv',1967,a$year2)
-a$year2<-ifelse(a$var=='her.szpe.rv',1968,a$year2)
-a$year2<-ifelse(a$var=='herlrv.len',1974,a$year2)
-a$year2<-ifelse(a$var=='her.metai.rv',1966,a$year2)
-
-a$lbl<-c( 'Herring weight-at-age','Herring spatial variance','Juvenile herring metabolic rate','Herring SSB','Herring productivity','Average mass of herring','Hering spatial covariance','Average length of herring','Average length of herrng larve','Average mass of juvenile herring','Ratio of adult to juvenile herring','Herring condition factor','Herring metabolic rate','Small-scale spatial variance of herring','Size evenness of herring','Recruitment at age 1')
-datt<-na.omit(subset(dat,select=c('year','her.ssb')))
-pdat<-data.frame(year=seq(min(datt$year),max(datt$year),length.out=1000))
-pdat$y<-aspline(datt$year,datt$her.ssb,xout=pdat$year)$y
-plot(dat$year,dat$her.ssb,las=1,pch=16,ylim=c(-2,2),cex=2,col=alpha('dodgerblue3',.3),xlim=c(1965,2010),xlab='Year',ylab='Herring SSB')
-points(dat$year,dat$her.ssb,pch=1,cex=2,col='dodgerblue3')
-points(a$year,rep(-2.15,dim(a)[1]),pch=17,col='firebrick3',cex=2)
-text(a$year2,rep(-2,dim(a)[1]),labels=a$lbl,srt=50,adj=0,cex=.8)
-lines(pdat$year,pdat$y,col='dodgerblue3',lwd=2)
-
-
-a$lbl<-c( 'Herring weight-at-age','Herring spatial variance','Juvenile herring metabolic rate','Herring SSB','Herring productivity','Average mass of herring','Hering spatial covariance','Average length of herring','Average length of herrng larve','Average mass of juvenile herring','Ratio of adult to juvenile herring','Herring condition factor','Herring metabolic rate','Small-scale spatial variance of herring','Size evenness of herring','Recruitment at age 1')
-datt<-na.omit(subset(dat,select=c('year','her.ssb')))
-pdat<-data.frame(year=seq(min(datt$year),max(datt$year),length.out=1000))
-pdat$y<-aspline(datt$year,datt$her.ssb,xout=pdat$year)$y
-
-plot(0,0,col='white',las=1,pch=16,ylim=c(-2,2),cex=2,xlim=c(1965,2015),xlab='',ylab='Herring SSB',axes=FALSE)
-points(a$year,rep(-2,dim(a)[1]),pch=25,col='firebrick3',bg='firebrick3',cex=2)
-text(a$year2,rep(-1.9,dim(a)[1]),labels=a$lbl,srt=50,adj=0,cex=.8)
-axis(1,at=seq(1965,2015,5))
-
-plot(dat$year,dat$her.ssb,las=1,pch=16,ylim=c(-1.75,2),cex=2,col=alpha('dodgerblue3',.3),xlim=c(1965,2015),xlab='Year',ylab='Herring SSB',xaxt='n')
-points(dat$year,dat$her.ssb,pch=1,cex=2,col='dodgerblue3')
-lines(pdat$year,pdat$y,col='dodgerblue3',lwd=2)
-axis(1,at=seq(1965,2015,5))
-
-plot(dat$year,dat$her.state,las=1,pch=16,ylim=c(-1.25,1.5),cex=2,col=alpha('dodgerblue3',.3),xlim=c(1965,2015),xlab='Year',ylab='Herring state',xaxt='n')
-points(dat$year,dat$her.state,pch=1,cex=2,col='dodgerblue3')
-as<-aspline(dat$year,dat$her.state,xout=seq(1965,2016,length.out=1000))
-lines(as$x,as$y,col='dodgerblue3',lwd=2)
-axis(1,at=seq(1965,2015,5))
-
-
-
-#PLOTS HERRINGS SSB FROM ACOUSTIC VERSUS VP
-setwd(datadir1)
-her<-read.csv('herring_assess_ssb_r_f_w_spera.csv',header=TRUE,na.strings=c('- '))
-names(her)<-tolower(names(her))
-#names(her)<-gsub('...','.',names(her))
-names(her)[56]<-'land2016'
-
-her$lratio<-(her$x4wx.stock.nominal.landings/her$x4wx.stock.tac)*100
-
-a<-na.omit(subset(her,select=c('year','acoustic')))
-modlm<-lm(acoustic~year,data=a)
-slm<-summary(modlm)
-a$resid<-residuals(modlm)
-t<-ts(a$resid)
-acpar<-mean(acf(t,plot=F)$acf[2])
-mod<-gls(acoustic~year,data=a,method='ML',correlation=corAR1(acpar, form = ~year))
-mod<-gls(acoustic~year,data=a,method='ML',correlation=corAR1(form = ~year))
-mod2<-lm(acoustic~year,data=her)
-
-#LANDINGS ARE FOR ALL AGES(1-11) AND SSB IS ONLY FOR AGES 4-8: THIS IS WHY EXPLOITATION RATE EXCEEDS 1 IN MANY CASES
-her$ssb<-her$ssb/1000
-her$landings<-her$landings/1000
-her$acoustic<-her$acoustic/1000
-her$expr<-her$landings/her$ssb
-her$expr.ac<-her$landings/her$acoustic
-
-cl1<-'magenta3'
-cl2<-'forestgreen'
-#PLOTS VPA AND ACOUSTIC SSB ESTIMATES; CALIBRATES ACOUSTIC
-d1<-na.omit(subset(her,select=c('year','ssb')))
-d2<-na.omit(subset(her,select=c('year','acoustic')))
-
-
-#setwd(figsdir)
-#pdf('VPA_vs_acoustic2.pdf',height=8,width=11)
-#par(mfrow=c(2,2),mar=c(4,4,1,1))
-
-#PREDICT SSB FROM ACOUSTIC- ADJUST ACOUSTIC DATA DOWNWARD TO MATCH VPA
-mod<-lm(ssb~acoustic,data=her)
-her$acoustic2<-predict(mod,newdata=data.frame(acoustic=her$acoustic))
-d1<-na.omit(subset(her,select=c('year','ssb')))
-d2<-na.omit(subset(her,select=c('year','acoustic2')))
-#plot(her$year,her$ssb,pch=16,xlim=c(1965,2016),type='l',las=1,xlab='Year',ylab='SSB',col=cl1,xaxt='n',ylim=c(0,800))
-asp<-aspline(her$year,her$ssb,xout=seq(min(d1$year),max(d1$year),length.out=1000))
-asp2<-aspline(her$year,her$acoustic2,xout=seq(min(d2$year),max(d2$year),length.out=1000))
-plot(asp$x,asp$y,pch=16,xlim=c(1965,2016),type='l',xlab='Year',ylab='SSB',col=cl1,ylim=c(0,800),xaxt='n',las=1)
-points(her$year,her$ssb,pch=16,xlim=c(1965,2016),col=alpha(cl1,.3),cex=1.5)
-points(asp2$x,asp2$y,pch=16,col=cl2,type='l',cex=1.5)
-points(her$year,her$acoustic2,pch=16,col=alpha(cl2,.3),cex=1.5)
-legend('topleft',legend=c('VPA (ages 4-8)','Acoustic calibrated to VPA'),col=c(cl1,cl2),lwd=2,bty='n')
-axis(1,seq(1965,2015,5))
-abline(h=0,col='gray')
-f<-function(d){
-  d$tot<-mean(c(d$ssb,d$acoustic2),na.rm=TRUE)
-  return(d)
-}
-her<-ddply(her,.(year),.fun=f)
-her$tot<-(her$tot-mean(her$tot,na.rm=TRUE))/sd(her$tot,na.rm=TRUE)
-aa<-na.omit(subset(her,select=c('year','tot')))
-asp2<-aspline(aa$year,aa$tot,xout=seq(1965,max(aa$year,na.rm=TRUE),length.out=1000))
-plot(asp2$x,asp2$y,pch=16,xlim=c(1965,2016),type='l',xlab='Year',ylab='SSB',col=cl1,ylim=c(-1.25,2.75),xaxt='n',las=1)
-points(her$year,her$tot,pch=16,col=alpha(cl1,.3),cex=2)
-points(her$year,her$tot,pch=1,col=cl1,cex=2)
-axis(1,seq(1965,2015,5))
-
-par(mfrow=c(2,1),mar=c(0,4,0,1),oma=c(8,1,6,1))
-plot(0,0,pch=16,xlim=c(1965,2015),type='l',xlab='Year',ylab='SSB',ylim=c(-1.25,2.75),xaxt='n',las=1,col='white',yaxt='n')
-#axis(1,seq(1965,2015,5))
-axis(2,seq(-1,2.5,.5),las=1)
-pd<-data.frame(year=asp2$x,
-               upr=asp2$y,
-               lwr=rep(-1.5,length(asp2$x)))
-polygon(c(pd$year,pd$year[length(pd$year):1]),c(pd$upr,pd$lwr[length(pd$lwr):1]),col=alpha('dodgerblue3',1),border=NA)
-
-as<-aspline(dat$year,dat$her.state,xout=seq(1965,2016,length.out=1000))
-pd<-data.frame(year=as$x,
-               upr=as$y,
-               lwr=rep(-1.5,length(as$x)))
-plot(0,0,las=1,pch=16,ylim=c(-1.25,1.25),cex=2,col=alpha('dodgerblue3',.3),xlim=c(1965,2015),xlab='Year',ylab='Herring state',xaxt='n')
-polygon(c(pd$year,pd$year[length(pd$year):1]),c(pd$upr,pd$lwr[length(pd$lwr):1]),col=alpha('dodgerblue3',1),border=NA)
-axis(1,at=seq(1965,2015,5))
-axis(2,seq(-1.5,1.5,.5),las=1)
-
-plot(0,0,col='white',las=1,pch=16,ylim=c(-2,2),cex=2,xlim=c(1965,2015),xlab='',ylab='Herring SSB',axes=FALSE)
-points(a$year,rep(-2,dim(a)[1]),pch=25,col='firebrick3',bg='firebrick3',cex=2)
-text(a$year2,rep(-1.9,dim(a)[1]),labels=a$lbl,srt=50,adj=0,cex=.8)
-axis(1,at=seq(1965,2015,5))
-dev.off()
-
-
-
-
-z<-dat %>% gather(var,y,-year)
-z<-subset(z,!(var %in% c('her.georng','her.totwgt.rv')))
-f<-function(d){
-  d<-subset(d,is.na(y)==FALSE)
-  return(data.frame(nindex=length(unique(d$var))))
-}
-odat2<-ddply(z,.(year),.fun=f)
-odat2<-subset(odat2,nindex>0)
-odat2$cx<-rescale(odat2$nindex,newrange=c(.5,5))
-odat2$aph<-rescale(odat2$nindex,newrange=c(.1,.99))
-
-library(RColorBrewer)
-
-setwd(figsdir)
-pdf('herring_state_plots_transform_v2.pdf',height=8,width=10)
-par(mfrow=c(2,2),mar=c(4,4,1,1))
-cl0<-'lightskyblue1'
-cl1<-'lightskyblue2'
-cl2<-'lightskyblue3'
-cl3<-'dodgerblue3'
-cl0<-'greenyellow'
-cl1<-'lawngreen'
-cl2<-'green3'
-cl3<-'green4'
-cl0<-'gray70'
-cl1<-'gray50'
-cl2<-'gray30'
-cl3<-'gold'
-b<-na.omit(subset(dat,select=c('year','her.state','her.state.se')))
-b$upr90<-b$her.state+(1.645*b$her.state.se)
-b$lwr90<-b$her.state-(1.645*b$her.state.se)
-b$upr95<-b$her.state+(1.96*b$her.state.se)
-b$lwr95<-b$her.state-(1.96*b$her.state.se)
-b$upr99<-b$her.state+(2.56*b$her.state.se)
-b$lwr99<-b$her.state-(2.56*b$her.state.se)
-ylm<-c(-1.25,1.5)
-plot(0,0,ylim=ylm,las=1,xlab='Year',ylab='Herring state',xlim=c(1965,2016),xaxt='n')
-axis(1,at=seq(1965,2015,5),labels=seq(1965,2015,5),cex=.8)
-#axis(1,at=seq(1965,2015,10),labels=TRUE)
-abline(h=0,col='lightgray')
-lines(b$year,b$her.state,pch=15)
-polygon(c(b$year,b$year[length(b$year):1]),c(b$upr99,b$lwr99[length(b$lwr99):1]),col=alpha(cl0,.75),border=NA)
-polygon(c(b$year,b$year[length(b$year):1]),c(b$upr95,b$lwr95[length(b$lwr95):1]),col=alpha(cl1,.75),border=NA)
-polygon(c(b$year,b$year[length(b$year):1]),c(b$upr90,b$lwr90[length(b$lwr90):1]),col=alpha(cl2,.75),border=NA)
-asp<-aspline(b$year,b$her.state,xout=seq(min(b$year),max(b$year),length.out=1000))
-lines(asp$x,asp$y,col=cl3,lwd=2)
-points(b$year,b$her.state,col=alpha(cl3,.5),pch=16,cex=1.5)
-points(odat2$year,rep(-1.5,dim(odat2)[1]),col=alpha('darkred',odat2$aph),pch='|',cex=5)
-clp<-colorRampPalette(brewer.pal(9,'Reds'))
-dm<-data.frame(x=seq(1,20,1),
-               y=seq(1,20,1),
-               cl=clp(20))
-colorbar.plot(2005,1,strip=dm$x,col=as.character(dm$cl),horizontal=TRUE,strip.width=.04,strip.length=.5)
-
-wn<-9
-yr<-subset(b,year>=min(b$year)+floor(wn/2) & year<= max(b$year)-floor(wn/2))$year
-for(i in 1:length(yr)){
-  d<-subset(b,year>=yr[i]-4 & year<= yr[i]+4)
-  mod<-lm(her.state~year,data=d,weights=1/d$her.state.se)
-  s<-summary(mod)
-  l[[i]]<-data.frame(year=yr[i],
-                     b=s$coef[2,1],
-                     se=s$coef[2,2])
-}
-sdat<-data.frame(do.call('rbind',l))
-
-xlm<-c(1965,2015)
-plot(sdat$year,sdat$b,type='l',las=1,xlim=xlm,xaxt='n',col='black',xlab='Year',ylab='Slope',lwd=2)
-axis(1,at=seq(1965,2015,5),labels=TRUE)
-abline(h=0,lty=2)
-plot(sdat$year,sdat$se,type='l',las=1,xlim=xlm,xaxt='n',col='black',xlab='Year',ylab='Variance',lwd=2)
-axis(1,at=seq(1965,2015,5),labels=TRUE)
-abline(h=0,lty=2)
-
-
-xts<-ts(b$year, start=c(1965,1), frequency=1)
-yts<-ts(b$her.state, start=c(1965,1), frequency=1)
-lmodel <- lm(yts ~ xts)
-#################################################
-buildModReg <- function(v) {
-  dV <- exp(v[1])
-  dW <- exp(v[2:3]) # Variances for mu, lambda
-  m0 <- v[4:5] # Initial levels for mu, lambda
-  dlmModReg(xts, dV = dV, dW = dW, m0 = m0)
-}
-
-#GUESSES FOR INITIAL PARAMETERS
-varguess <- var(diff(yts), na.rm = TRUE)
-mu0guess <- as.numeric(yts[1])
-lambda0guess <- mean(diff(yts), na.rm = TRUE)
-
-#GET ESTIMATES FOR INITIAL PARAMETERS
-parm <- c(log(varguess), log(varguess/5), log(varguess/5),mu0guess, lambda0guess)
-mle <- dlmMLE(yts, parm = parm, build = buildModReg)
-
-#ESTIMATE MODEL AND THEN SMOOTH USING KALMAN
-model <- buildModReg(mle$par)
-models <- dlmSmooth(yts, model)
-
-#GET CONFIDENCE INTERVALS
-alpha.s = xts(models$s[-1,1,drop=FALSE],b$year)
-beta.s = xts(models$s[-1,2,drop=FALSE], b$year)
-
-mse.list = dlmSvd2var(models$U.S, models$D.S)
-se.mat = t(sapply(mse.list, FUN=function(x) sqrt(diag(x))))
-se.xts = xts(se.mat[-1, ], index(beta.s))
-colnames(se.xts) = c("alpha", "beta")
-b.u = beta.s  + 1.96*se.xts$beta
-b.l = beta.s  - 1.96*se.xts$beta
-
-out<-data.frame(year=b$year,
-                a=models$s[-1,1],
-                b=models$s[-1,2],
-                b.upr=b.u,
-                b.lwr=b.l,
-                b.se=se.xts$beta)
-out$b<-(out$b*1000)
-plot(out$year,out$b,type='l',ylim=c(-34.3034,-34.302),las=1,xlim=c(1965,2017),xaxt='n',col='black',xlab='Year',ylab='Slope',lwd=2)
-axis(1,at=seq(1965,2015,5),labels=TRUE)
-abline(v=1984,lty=2)
-points(out$year,out$b,col=alpha(cl3,1),pch=16,cex=1.5)
-points(out$year,out$b,col=alpha('gray20',1),pch=1,cex=1.5,lwd=.5)
-
-dd<-subset(data,select=c('year','her.ssbc','her.state'))
-dd<-merge(dd,out,by=c('year'),all=FALSE)
-dd<-slide(dd,Var='b',slideBy=-3,NewVar='bt3')
-
-ddd<-na.omit(subset(dd,select=c('her.ssbc','b')))
-cf<-ccf(ddd$her.ssbc,ddd$b,lag.max=15)
-cdat<-data.frame(x=seq(-15,15,1),
-                 y=cf$acf)
-plot(0,0,ylim=c(0,.8),las=1,xlab='Lag',ylab='Correlation',xlim=c(-15,15),axes=FALSE,col='white',pch='.')
-axis(1,seq(-15,15,5))
-axis(2,seq(0,.8,.2),las=1)
-rect(xleft=-20,ybottom=0,xright=0,ytop=2,col='gray90',border=NA)
-abline(h=.28,lty=2,col='blue')
-points(cdat$x,cdat$y,type='h',ylim=c(0,.8),las=1,col=ifelse(cdat$x==3,'firebrick3','black'),lwd=2)
-points(cdat$x,cdat$y,pch=16,col=ifelse(cdat$x==3,'firebrick3','black'),cex=1)
-abline(h=0)
-
-20+3.34
-(3.43*10^-2)-20
-
-#CHARACTERIZE TRENDS
-bb<-subset(dat,select=c('year','her.state','her.state.se'))
-modl<-lm(her.state~year,data=bb,weights=1/bb$her.state.se)
-m<-breakpoints(her.state~year,data=bb,h=3,breaks=3)
-modst<-lm(her.state~breakfactor(m,breaks=length(unique(m$breakpoints))),data=bb,weights=1/bb$her.state.se)
-modnl<-lm(her.state~bs(year,degree=3,df=5),data=bb,weights=1/bb$her.state.se)
-bp<-median(bb$year)
-modd<-lm(her.state~year,data=bb)
-modseg<-segmented(modd,seg.Z = ~year,psi=bp,control=seg.control(it.max=200),weights=1/bb$her.state.se)
-
-dt<-data.frame(AIC(modl,modnl,modseg,modst))
-names(dt)<-ifelse(names(dt) %in% c('BIC'),'AIC',names(dt))
-dt$md<-rownames(dt)
-dt$AIC<-ifelse(dt$md=='modnl',dt$AIC+2,dt$AIC)
-dt1<-subset(dt,AIC==min(dt$AIC))
-pdat<-data.frame(year=seq(min(b$year),max(b$year),length.out=100))
-pdat2<-data.frame(year=sort(unique(b$year)))
-pdat$pseg<-predict(modseg,newdata=pdat)
-pnl<-predict(modnl,newdata=pdat,se.fit=TRUE)
-pdat$pnl<-pnl$fit
-pdat$pnl.se<-pnl$se.fit
-pdat$upr95<-pdat$pnl+(1.96*pdat$pnl.se)
-pdat$lwr95<-pdat$pnl-(1.96*pdat$pnl.se)
-pdat$upr90<-pdat$pnl+(1.645*pdat$pnl.se)
-pdat$lwr90<-pdat$pnl-(1.645*pdat$pnl.se)
-pdat$upr99<-pdat$pnl+(2.56*pdat$pnl.se)
-pdat$lwr99<-pdat$pnl-(2.56*pdat$pnl.se)
-pdat$pl<-predict(modl,newdata=pdat)
-pdat2$pst<-predict(modst,newdata=pdat2)
-
-plot(0,0,ylim=ylm,las=1,xlab='Year',ylab='Herring state',xlim=c(1965,2016),xaxt='n')
-axis(1,at=seq(1965,2015,5),labels=TRUE)
-abline(h=0,col='gray')
-
-polygon(c(pdat$year,pdat$year[length(pdat$year):1]),c(pdat$upr99,pdat$lwr99[length(pdat$lwr99):1]),col=alpha(cl0,.75),border=NA)
-polygon(c(pdat$year,pdat$year[length(pdat$year):1]),c(pdat$upr95,pdat$lwr95[length(pdat$lwr95):1]),col=alpha(cl1,.75),border=NA)
-polygon(c(pdat$year,pdat$year[length(pdat$year):1]),c(pdat$upr90,pdat$lwr90[length(pdat$lwr90):1]),col=alpha(cl2,.75),border=NA)
-
-points(b$year,b$her.state,col=alpha(cl3,1),pch=16,cex=1.5)
-points(b$year,b$her.state,col=alpha(cl2,.75),pch=1,cex=1.5,lwd=.5)
-lines(pdat$year,pdat$pnl,col=cl3,lty=1)
-#lines(pdat$year,pdat$pl,col='black',lty=2)
-#lines(pdat$year,pdat$pseg,col='black',lty=2)
-#lines(pdat2$year,pdat2$pst,col='black',lty=3)
-#lines(pdat$year,pdat$pseg,lty=3,col='red')
-rlm<-round(summary(modl)$r.sq,digits=2)
-rseg<-round(summary(modseg)$r.sq,digits=2)
-rst<-round(summary(modst)$r.sq,digits=2)
-rnl<-round(summary(modnl)$r.sq,digits=2)
-legend('top',c(paste('Spline (r2=',rnl,')'),paste('Linear (r2=',rlm,')'),paste('Structural (r2=',rst,')')),bty='n',lty=c(1,2,3))
-points(odat2$year,rep(-1.5,dim(odat2)[1]),col=alpha('darkred',odat2$aph),pch='|',cex=5)
-
-dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-############################
-
-###########################
 
 datadir<-'N://cluster_2017//scratch//spera//data//finaldat_v2'
 setwd(datadir)
@@ -1882,6 +638,854 @@ lines(pdat$her.ssbc,pdat$p)
 
 
 
+library(rcompanion)
+library(tidyr)
+library(ggpubr)
+library(pheatmap)
+setwd(datadir)
+load('SPERA_andata_new.RData')
+#load('SPERA_andata_spawnar.RData')
+#load('SPERA_andata.RData')
+nms<-names(data)
+nms<-nms[grepl('her',nms)==TRUE]
+nms<-nms[grepl('\\.se',nms)==FALSE]
+nms<-nms[grepl('\\.tplus',nms)==FALSE]
+nms<-nms[grepl('\\.tmin',nms)==FALSE]
+nms<-nms[grepl('\\.cat',nms)==FALSE]
+nms<-nms[grepl('sp\\.n',nms)==FALSE]
+df<-data[,names(data) %in% c('year',nms)]
+df<-subset(df,year>=1965)
+df<-df[,!(names(df) %in% c('herjuv.prey.bof','her.jf.bof','her.preytot.bof','her.land','her.expr','herjuv.spvar','herjuv.spcv','herjuv.sprng','herjuv.spnug','her.szdiv.rv','her.dvm2.rv','herjuv.dvm2.rv','her.dur2.rv','herjuv.dur2.rv','her.durng.rv','herjuv.durng.rv','her.state','her.ssb','her.land.pct1','her.land.spdiv','her.land.sprich','herlrv.dep.bof','herlrv.spcv','herlrv.spnug','herlrv.sprng','herlrv.spvar','herjuv.dumx.rv'))]
+#df$her.spcv<-df$her.spcv*-1
+#df$her.spvar<-df$her.spvar*-1
+#df$her.spnug<-df$her.spnug*-1
+df$her.dvm.rv<-ifelse(df$her.dvm.rv==Inf,NA,df$her.dvm.rv)
+######
+
+#EXCLUDE COLLINEAR VARS
+df<-df[,!(names(df) %in% c('her.eggprod','her.tbio','her.totno.rv','herjuv.totno.rv'))]
+
+#CONVERT TO SHORT FORM, EXAMINE NORMALITY, TRANSFORM USING BEST EXPONENTIAL TRANSFORM
+dfs<-df %>% gather(var,y,-year)
+
+
+#LOOK AT SKEWNESS OF VARIABLES
+sk<-data.frame(var=sort(unique(dfs$var)),
+               sk=tapply(dfs$y,dfs$var,function(x) skewness(x,na.rm=TRUE)))
+sk<-sk[order(abs(sk$sk),decreasing=TRUE),]
+
+#TRANSFORM VARIABLES TO OPTIMIZE NORMALITY
+f<-function(d){
+if(unique(d$var)=='her.spnug'){
+    NULL
+    } else { d$y<-transformTukey(d$y,plotit=FALSE)
+         }
+  return(d)
+}
+dfs<-ddply(dfs,.(var),.fun=f)
+
+
+#LOOK AT SKEWNESS OF VARIABLES
+sk<-data.frame(var=sort(unique(dfs$var)),
+               sk=tapply(dfs$y,dfs$var,function(x) skewness(x,na.rm=TRUE)))
+sk<-sk[order(abs(sk$sk),decreasing=TRUE),]
+
+#CONVERT BACK TO LONG FORM
+df<-spread(data=dfs,key=var, value=y)
+
+df2<-data.frame(t(df))
+names(df2)<-df2[1,]
+df2<-df2[-1,]
+
+#histogram(~y | var,data=dfs)
+
+f<-function(d){
+  d$y<-(d$y-mean(d$y,na.rm=TRUE))/sd(d$y,na.rm=TRUE)
+  return(d)
+}
+pdats<-ddply(dfs,.(var),.fun=f)
+
+pdatl<-spread(data=pdats,key=var, value=y)
+
+#cl<-df2 %>%
+#    scale() %>%
+#    dist() %>%
+#    hclust(method='ward.D2')
+#fviz_dend(cl,cex=.5,k=5,palette='jco',horiz=TRUE)
+setwd(figsdir)
+dm<-read.csv('dm.csv',header=TRUE)
+nms<-subset(dm,select=c('var','lbl'))
+dff2<-pdats
+dff2<-merge(dff2,nms,by=c('var'),all.x=TRUE,all.y=FALSE)
+dff2<-unique(subset(dff2,select=c('var','lbl')))
+dff2$lbl<-ifelse(dff2$var=='her.dvm.rv','Herring diurnal migration',as.character(dff2$lbl))
+dff2<-spread(data=dff2,key=var, value=lbl)
+
+
+dff<-pdatl[,-1]
+dmat<-1-(cor(dff,use='pairwise.complete.obs',method='spearman'))
+#dmat<-abs(cor(dff,use='pairwise.complete.obs',method='spearman'))
+dst<-as.dist(dmat)
+
+
+
+setwd(figsdir)
+#pdf('herring_state_hcluster_spawnar.pdf',height=14,width=10)
+pdf('herring_state_hcluster_allind.pdf',height=14,width=10)
+par(mar=c(4,4,4,4),oma=c(1,1,1,1))
+#library(tibble)
+mds<-as.data.frame(cmdscale(dst))
+colnames(mds)<-c('Dim.1','Dim.2')
+p1<-ggscatter(mds,x='Dim.1',y='Dim.2',label=as.character(dff2[1,]),size=2,repel=TRUE,alpha=.5)
+
+#KMEANS CLUSTERING
+dcol<-data.frame(cl=c('orange','firebrick3','forestgreen','dodgerblue3'),clust=seq(1,4,1))
+
+clust <- kmeans(mds, 4)$cluster %>%
+  as.factor()
+mds <- mds %>%
+  mutate(groups = clust)
+# Plot and color by groups
+p2<-ggscatter(mds, x = "Dim.1", y = "Dim.2",
+              label = as.character(dff2[1,]),
+              font.label=c(10,'plain'),
+              color = "groups",
+              #          palette = "jco",
+              palette =as.character(dcol$cl),
+              size = 5,
+              ellipse = TRUE,
+              ellipse.type = "convex",
+              repel = TRUE)
+grid.arrange(p1,p2,ncol=1)
+
+#GETS NAMES OF VARIABLES IN EACH CLUSTER
+cldat<-data.frame(var=names(dff),
+                  clust=clust)
+cldat<-cldat[order(cldat$clust),]
+cldat<-merge(cldat,dcol,by=c('clust'),all=FALSE)
+
+#HCLUST PLOTS
+par(mfrow=c(2,1),mar=c(4,6,1,6))
+hc<-hclust(dst,method='ward.D2')
+sub_grp<-cutree(hc,k=5)
+
+hc2<-as.dendrogram(hc)
+plot(hc2)
+rect.hclust(hc, k = 3, border = 2:5)
+
+
+#PLOT CLUST AS HORIZONTAL
+agh<-as.hclust(hc)
+labelColors = c('red3','royalblue','forestgreen')
+clusMember = cutree(agh, 3)
+# function to get color labels
+colLab <- function(n) {
+  if (is.leaf(n)) {
+    a <- attributes(n)
+    labCol <- labelColors[clusMember[which(names(clusMember) == a$label)]]
+    attr(n, "nodePar") <- c(a$nodePar, lab.col = labCol)
+  }
+  n
+}
+clusDendro = dendrapply(as.dendrogram(agh), colLab)
+nodePar <- list(lab.cex = 0.6, pch = c(NA, 19))
+plot(clusDendro, main = "",las=1,horiz=TRUE,cex=.7,pch=16,nodePar=nodePar)
+
+aa<-merge(pdats,cldat,by=c('var'),all.x=TRUE,all.y=FALSE)
+f<-function(d){
+  d<-subset(d,is.na(y)==FALSE)
+  return(data.frame(nindex=length(unique(d$var))))
+}
+odat<-ddply(aa,.(clust,year),.fun=f)
+odat$cx<-rescale(odat$nindex,newrange=c(.5,5))
+odat$aph<-rescale(odat$nindex,newrange=c(.1,.99))
+#points(d3$year,rep(-2.3,dim(d3)[1]),col=alpha('black',d3$aph),pch='|',cex=4)
+
+#GETS AVERAGE CORREALTION, RATE OF CHANGE AND  PLOTS TS FOR EACH CLUSTER
+par(mfrow=c(4,2))
+for(i in 1:4){
+  print(i)
+  cl<-subset(cldat,clust==i)
+  d<-subset(pdatl,select=as.character(cl$var))
+  d2<-na.omit(subset(pdats,var %in% as.character(cl$var)))
+  d3<-subset(odat,clust==i)
+  cr<-cor(d,use='pairwise.complete.obs',method='spearman')
+  cr.r<-round(cr,digits=2)
+  cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
+  combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
+  cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
+  cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
+  print(mean(cr.t$Freq))
+  mod<-gamm(y~year,data=d2,random=list(var=~1))
+  modf<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
+  mods<-gamm(y~s(year),data=d2,random=list(var=~1))
+  pdat<-data.frame(year=sort(unique(d2$year)))
+  pdatsm<-data.frame(year=seq(min(d2$year),max(d2$year),length.out=1000))
+  psm<-predict(mods$gam,newdata=pdatsm,se.fit=TRUE)
+  pdatsm$p<-psm$fit
+  pdatsm$se<-psm$se.fit
+  pdatsm$upr<-pdatsm$p+(1.96*pdatsm$se)
+  pdatsm$lwr<-pdatsm$p-(1.96*pdatsm$se)
+  p<-predict(modf$gam,newdata=pdat,se.fit=TRUE)
+  pdat$p<-p$fit
+  pdat$se<-p$se.fit
+  pdat$upr<-pdat$p+(1.96*p$se)
+  pdat$lwr<-pdat$p-(1.96*p$se)
+  plot(pdat$year,pdat$p,las=1,pch=15,xlim=c(1965,2017),ylim=c(-2,1.5),col=alpha(unique(as.character(cl$cl)),.9),cex=1.75,xaxt='n',xlab='Year',ylab='Mixed model average')
+  #points(pdat$year,pdat$p,pch=0,col=alpha(unique(as.character(cl$cl)),1),cex=1.75)
+  points(d3$year,rep(-2.3,dim(d3)[1]),col=alpha('black',d3$aph),pch='|',cex=4)
+  axis(1,seq(1965,2017,5))
+  abline(h=0,lty=2)
+  #polygon(c(pdatsm$year,pdatsm$year[length(pdatsm$year):1]),c(pdatsm$upr,pdatsm$lwr[length(pdatsm$lwr):1]),col=alpha(as.character(unique(cl$cl)),.3),border=NA)
+  s<-summary(mod$gam)
+  r2<-round(s$r.sq,digits=2)
+  f2<-function(g){lines(c(g$year,g$year),c(g$upr,g$lwr),col=alpha(unique(as.character(cl$cl)),.5),lwd=1.25)}
+  zz<-dlply(pdat,.(year),.fun=f2)
+  legend('topright',c(paste('r2=',r2),paste('av r=',round(mean(cr.t$Freq),digits=2))),bty='n')
+  #lines(pdatsm$year,pdatsm$p,col=unique(as.character(cl$cl)),lwd=2)
+}
+
+#GETS AVERAGE CORREALTION, RATE OF CHANGE AND  PLOTS TS FOR EACH CLUSTER
+par(mfrow=c(4,2))
+for(i in 1:4){
+  print(i)
+  cl<-subset(cldat,clust==i)
+  d<-subset(pdatl,select=as.character(cl$var))
+  d3<-subset(odat,clust==i)
+  d2<-na.omit(subset(pdats,var %in% as.character(cl$var)))
+  cr<-cor(d,use='pairwise.complete.obs',method='spearman')
+  cr.r<-round(cr,digits=2)
+  cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
+  combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
+  cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
+  cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
+  print(mean(cr.t$Freq))
+  mod<-gamm(y~year,data=d2,random=list(var=~1))
+  modf<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
+  mods<-gamm(y~s(year),data=d2,random=list(var=~1))
+  pdat<-data.frame(year=sort(unique(d2$year)))
+  pdatsm<-data.frame(year=seq(min(d2$year),max(d2$year),length.out=1000))
+  psm<-predict(mods$gam,newdata=pdatsm,se.fit=TRUE)
+  pdatsm$p<-psm$fit
+  pdatsm$se<-psm$se.fit
+  pdatsm$upr<-pdatsm$p+(1.96*pdatsm$se)
+  pdatsm$lwr<-pdatsm$p-(1.96*pdatsm$se)
+  p<-predict(modf$gam,newdata=pdat,se.fit=TRUE)
+  pdat$p<-p$fit
+  pdat$se<-p$se.fit
+  pdat$upr<-pdat$p+(1.96*p$se)
+  pdat$lwr<-pdat$p-(1.96*p$se)
+  plot(pdat$year,pdat$p,las=1,pch=15,xlim=c(1965,2017),ylim=c(-1.5,1.5),col='black',xaxt='n',xlab='Year',ylab='Mixed model average',cex=1.75)
+  points(d3$year,rep(-2.3,dim(d3)[1]),col=alpha('black',d3$aph),pch='|',cex=4)
+  axis(1,seq(1965,2017,5))
+  abline(h=0,lty=2)
+  #polygon(c(pdatsm$year,pdatsm$year[length(pdatsm$year):1]),c(pdatsm$upr,pdatsm$lwr[length(pdatsm$lwr):1]),col=alpha(as.character(unique(cl$cl)),.3),border=NA)
+  s<-summary(mod$gam)
+  r2<-round(s$r.sq,digits=2)
+  f2<-function(g){    lines(c(g$year,g$year),c(g$upr,g$lwr),col=alpha('black',.25))}
+  zz<-dlply(pdat,.(year),.fun=f2)
+  legend('topright',c(paste('r2=',r2),paste('av r=',round(mean(cr.t$Freq),digits=2))),bty='n')
+  #lines(pdatsm$year,pdatsm$p,col='black',lwd=2)
+}
+
+
+
+
+
+##########################################################
+
+#  FITS TIMESERIES MODELS TO NORMALIZED SERIES
+dati<-pdatl
+dati$her.spcv<-dati$her.spcv*-1
+dati$her.spvar<-dati$her.spvar*-1
+dati$her.spnug<-dati$her.spnug*-1
+
+df<-dati %>% gather(var,y,-year)
+
+f<-function(d){
+  print(unique(d$var))
+  d<-na.omit(d)
+  modlm<-lm(y~year,data=d)
+  slm<-summary(modlm)
+  d$resid<-residuals(modlm)
+  t<-ts(d$resid)
+  acpar<-mean(acf(t,plot=F)$acf[2])
+
+  mod<-gls(y~year,data=d,method='ML',correlation=corAR1(acpar, form = ~year))
+  s<-summary(mod)
+
+  #modg<-gamm(y~s(year),data=d,correlation=corCAR1(value=acpar, form = ~year))
+  modg<-gamm(y~s(year,k=7),data=d,correlation=corCAR1(form = ~year),gamma=1)
+  sg<-summary(modg$gam)
+  #plot(d$year,d$y,xlab='Year',ylab='Z-score',las=1,pch=15)
+  #legend('topright',unique(d$var),bty='n')
+  pdat<-data.frame(year=seq(min(d$year),max(d$year),1))
+  pdat$p<-predict(modg$gam,newdata=pdat)
+  #lines(pdat$year,pdat$p)
+  return(round(data.frame(b=slm$coef[2,1],
+                          pv=slm$coef[2,4],
+                          bgls=s$tTable[2,1],
+                          pvgls=s$tTable[2,4],
+                          pvgam=sg$s.table[1,4]),digits=3))
+}
+#setwd(figsdir)
+#pdf('herring_indices_timetrends_v2.pdf',height=10,width=10)
+#par(mfrow=c(4,4),mar=c(4,4,1,1))
+ot<-ddply(df,.(var),.fun=f,.progress='text')
+#dev.off()
+
+
+ot<-ot[order(ot$pvgam),]
+#write.csv(ot,file='herring_indices_timetrends.csv',row.names=FALSE)
+
+s<-subset(ot,pv<0.05)
+s2<-subset(ot,pvgls<0.05)
+s3<-subset(ot,pvgam<0.05)
+s3<-subset(ot,pvgam<0.1 | pv<.05)
+
+
+
+dff<-pdatl[,-1]
+setwd(figsdir)
+dm<-read.csv('dm.csv',header=TRUE)
+nms<-subset(dm,select=c('var','lbl'))
+dff2<-pdats
+dff2<-merge(dff2,nms,by=c('var'),all.x=TRUE,all.y=FALSE)
+dff2<-unique(subset(dff2,select=c('var','lbl')))
+dff2$lbl<-ifelse(dff2$var=='her.dvm.rv','Herring diurnal migration',as.character(dff2$lbl))
+dff2<-spread(data=dff2,key=var, value=lbl)
+
+dmat<-1-(cor(dff,use='pairwise.complete.obs',method='spearman'))
+dst<-as.dist(dmat)
+
+
+mds<-as.data.frame(cmdscale(dst))
+colnames(mds)<-c('Dim.1','Dim.2')
+mds$var<-rownames(mds)
+mds<-merge(mds,ot,by=c('var'),all=TRUE)
+#mds$cl<-ifelse(mds$pvgam<=.05,'firebrick3','black')
+#mds$cl<-ifelse(mds$pvgam<=.1,'gold3','black')
+#mds$cl<-ifelse(mds$pvgam<=.05,'firebrick3',mds$cl)
+mds$cl<-ifelse(mds$pvgam<=.1,'gold3','gray30')
+mds$cl<-ifelse(mds$pvgam<=.05,'firebrick3',mds$cl)
+
+
+p2<-ggscatter(mds,x='Dim.1',y='Dim.2',label=as.character(dff2[1,]),size=5,repel=TRUE,alpha=1,color=mds$cl,font.label=c(14,'plain','gray50'))
+#p2<-ggscatter(mds,x='Dim.1',y='Dim.2',label='',size=5,repel=TRUE,alpha=1,color=mds$cl,font.label=c(14,'plain','gray50'))
+
+clust <- kmeans(mds, 4)$cluster %>%
+  as.factor()
+mds <- mds %>%
+  mutate(groups = clust)
+p1<-ggscatter(mds, x = "Dim.1", y = "Dim.2",
+              label = as.character(dff2[1,]),
+              color = "groups",
+              palette=rep('gray20',4),
+              font.label = c(12, "plain"),
+              size = 1,
+              ellipse = TRUE,
+              ellipse.type = "convex",
+              repel = TRUE)
+mds2<-data.frame(dim1=mds$Dim.1,
+                 dim2=mds$Dim.2,
+                 cl=mds$cl)
+p1<-p1+
+  geom_point(data=mds2,aes(x=dim1,y=dim2),size=4,alpha=1,color=mds2$cl)
+grid.arrange(p2,p1,ncol=1)
+
+
+d<-pdatl
+d<-d[,!(names(d)%in% c('year'))]
+dt<-cor(d,use='pairwise.complete.obs',method='spearman')
+cls<-brewer.pal(5,'Spectral')
+cls<-colorRampPalette(cls)(100)
+ord<-order(dt[1,])
+data.ord<-dt[ord,ord]
+par(mfrow=c(1,1))
+plotcorr(data.ord,col=cls[data.ord*50+50],mar=c(1,1,1,1), numbers=FALSE)
+dev.off()
+
+
+library(GGally)
+setwd(figsdir)
+pdf('prac.pdf',width=12,height=12)
+ggcorr(d, method = c("pairwise.complete.obs", "pearson"),label=TRUE,label_round=2,label_size=3,layout.exp=0)+
+theme(axis.text.y = element_text(hjust=0))+
+theme(axis.text.x = element_text(hjust=0))
+dev.off()
+
+cr<-cor(d,use='pairwise.complete.obs',method='spearman')
+cr.r<-round(cr,digits=2)
+cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
+combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
+    cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
+cr.t<-cr.t[order(abs(cr.t$Freq),decreasing=TRUE),]
+cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
+
+plot(pdatl$year,pdatl$herlrv.mn.bof,pch=15)
+plot(data$year,data$herlrv.mn.bof,pch=15,xlim=c(1970,2005),type='b')
+
+
+setwd(figsdir)
+pdf('herring_state_hcluster_heatmap.pdf',height=8,width=12)
+#pdf('herring_state_hcluster_heatmap_spawnar.pdf',height=8,width=12)
+#PLOTS OUT 2D CLUSTER OF SELECTED VARIABLES
+#ALL DATA
+pdatll<-subset(pdatl,year<=2014)
+pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
+
+pdatl2<-data.frame(t(pdatll))
+names(pdatl2)<-pdatl2[1,]
+pdatl2<-pdatl2[-1,]
+
+pheatmap(pdatl2,cutree_cols=2,cutree_rows=3,clustering_method='ward.D')
+
+#CLUSTERING BASED ON ABSOLUTE CORRELATION MATRIX
+dmat2<-abs(cor(dff,use='pairwise.complete.obs',method='spearman'))
+pheatmap(dmat2,cutree_cols=2,cutree_rows=2,clustering_method='ward.D2')
+
+#CLUSTERING BASED ON CORRELATION MATRIX
+dmat2<-(cor(dff,use='pairwise.complete.obs',method='spearman'))
+pheatmap(dmat2,cutree_cols=3,cutree_rows=3,clustering_method='ward.D2')
+
+#ONLY DATA THAT CLUSTER TOGETHER; NEED TO INSPECT TO ENSURE GETTING RIGHT CLSUTERS
+a<-subset(cldat,clust %in% c(1,3))
+pdatll<-subset(pdatl,year<=2014,select=c('year',as.character(a$var),'her.prod','her.metai.rv'))
+#pdatll<-pdatll[order(pdatll$year,decreasing=TRUE),]
+pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
+pdatl2<-data.frame(t(pdatll))
+names(pdatl2)<-pdatl2[1,]
+pdatl2<-pdatl2[-1,]
+
+pheatmap(pdatl2,cutree_cols=2,cutree_rows=5,clustering_method='ward.D')
+
+
+
+#ONLY DATA THAT CLUSTER TOGETHER; NEED TO INSPECT TO ENSURE GETTING RIGHT CLSUTERS
+a<-subset(cldat,clust %in% c(1,3))
+a<-subset(a,!(var %in% c('herjuv.totwgt.rv','herjuv.totno.rv','her.totno.rv','her.tbio')))
+pdatll<-subset(pdatl,year<=2014,select=c('year',as.character(a$var),'her.prod','her.metai.rv'))
+pdatll$her.spcv<-pdatll$her.spcv*-1
+pdatll$her.spvar<-pdatll$her.spvar*-1
+pdatll$her.spnug<-pdatll$her.spnug*-1
+#pdatll<-pdatll[order(pdatll$year,decreasing=TRUE),]
+pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
+pdatl2<-data.frame(t(pdatll))
+names(pdatl2)<-pdatl2[1,]
+pdatl2<-pdatl2[-1,]
+
+pheatmap(pdatl2,cutree_cols=2,cutree_rows=6,clustering_method='ward.D')
+
+
+#TRANSFORM SO ALL INDICES MOVE IN SAME DIRECTION
+a<-subset(cldat,clust %in% c(1,3))
+a<-subset(a,!(var %in% c('herjuv.totwgt.rv','herjuv.totno.rv','her.totno.rv','her.tbio')))
+pdatll<-subset(pdatl,year<=2014,select=c('year',as.character(a$var),'her.prod','her.metai.rv'))
+#pdatll<-pdatll[order(pdatll$year,decreasing=TRUE),]
+#pdatll$herjuv.totwgt.rv<-pdatll$herjuv.totwgt.rv*-1
+#pdatll$herjuv.totno.rv<-pdatll$herjuv.totno.rv*-1
+#pdatll$her.totwgt.rv<-pdatll$her.totwgt.rv*-1
+#pdatll$her.totno.rv<-pdatll$her.totno.rv*-1
+pdatll$her.spcv<-pdatll$her.spcv*-1
+pdatll$her.spvar<-pdatll$her.spvar*-1
+pdatll$her.spnug<-pdatll$her.spnug*-1
+
+pdatll<-pdatll[order(pdatll$year,decreasing=FALSE),]
+pdatl2<-data.frame(t(pdatll))
+names(pdatl2)<-pdatl2[1,]
+pdatl2<-pdatl2[-1,]
+
+pheatmap(pdatl2,cutree_cols=2,cutree_rows=6,clustering_method='ward.D')
+
+#CLUSTERING BASED ON CORRELATION MATRIX
+pdatll<-pdatll[,-1]
+dmat2<-(cor(pdatll,use='pairwise.complete.obs',method='spearman'))
+pheatmap(dmat2,cutree_cols=3,cutree_rows=3,clustering_method='ward.D2')
+
+dev.off()
+
+
+
+
+#GETS AVERAGE CORREALTION, RATE OF CHANGE AND  PLOTS TS FOR EACH CLUSTER
+cldat2<-subset(cldat,clust %in% c(1,3))
+cldat2<-subset(cldat2,!(var %in% c('herjuv.totwgt.rv','herjuv.totno.rv','her.totno.rv')))
+
+cldat2$clust<-ifelse(cldat2$var %in% c('her.georng','her.totwgt.rv'),1,6)
+cldat2$clust<-ifelse(cldat2$var %in% c('her.ajrat.rv'),2,cldat2$clust)
+cldat2$clust<-ifelse(cldat2$var %in% c('her.spnut','her.spcv','her.spvar'),3,cldat2$clust)
+cldat2$clust<-ifelse(cldat2$var %in% c('her.szpe.rv','herjuv.fmass.rv','her.cf.rv','her.fmass.rv','her.len.rv','her.ssb','her.waa'),4,cldat2$clust)
+cldat2$clust<-ifelse(cldat2$var %in% c('herlrv.len','herjuv.metai.rv','her.metai.rv'),5,cldat2$clust)
+
+setwd(figsdir)
+pdf('herring_heatmaps_timetrends.pdf',height=8.5,width=7)
+par(mfrow=c(3,2))
+for(i in 1:6){
+  print(i)
+  cl<-subset(cldat2,clust==i)
+  d<-subset(pdatl,select=as.character(cl$var))
+  d2<-na.omit(subset(pdats,var %in% as.character(cl$var)))
+  if(i==3){d2$y<-d2$y*-1
+  } else NULL
+
+  ylm<-c(-2,2)
+  xlm<-c(1965,2017)
+  if(length(unique(d2$var))>1){
+    cr<-cor(d,use='pairwise.complete.obs',method='spearman')
+    cr.r<-round(cr,digits=2)
+    cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
+    combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
+    cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
+    cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
+    print(mean(cr.t$Freq))
+    mod<-gamm(y~year,data=d2,random=list(var=~1))
+    modf<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
+    mods<-gamm(y~s(year),data=d2,random=list(var=~1))
+    pdat<-data.frame(year=sort(unique(d2$year)))
+    pdatsm<-data.frame(year=seq(min(d2$year),max(d2$year),length.out=1000))
+    psm<-predict(mods$gam,newdata=pdatsm,se.fit=TRUE)
+    pdatsm$p<-psm$fit
+    pdatsm$se<-psm$se.fit
+    pdatsm$upr<-pdatsm$p+(1.96*pdatsm$se)
+    pdatsm$lwr<-pdatsm$p-(1.96*pdatsm$se)
+    p<-predict(modf$gam,newdata=pdat,se.fit=TRUE)
+    pdat$p<-p$fit
+    pdat$se<-p$se.fit
+    pdat$upr<-pdat$p+(1.96*p$se)
+    pdat$lwr<-pdat$p-(1.96*p$se)
+    plot(pdat$year,pdat$p,las=1,pch=15,xlim=xlm,ylim=ylm,col='black',xaxt='n',xlab='Year',ylab='',axes=FALSE,pt.cex=.7)
+    axis(1,seq(1965,2015,5))
+    axis(4,c(ylm[1],ylm[2]),las=1)
+    abline(h=0,lty=2)
+    s<-summary(mod$gam)
+    r2<-round(s$r.sq,digits=2)
+    f2<-function(g){    lines(c(g$year,g$year),c(g$upr,g$lwr),col=alpha('black',.15))}
+    zz<-dlply(pdat,.(year),.fun=f2)
+    legend('topright',c(paste('r2=',r2),paste('av r=',round(mean(cr.t$Freq),digits=2))),bty='n')
+    #lines(pdatsm$year,pdatsm$p,col='black',lwd=2)
+  } else {
+    plot(d2$year,d2$y,las=1,pch=15,xlim=xlm,ylim=ylm,col='black',xaxt='n',xlab='Year',ylab='',axes=FALSE,pt.cex=.7)
+    axis(1,seq(1965,2015,5))
+    axis(4,c(ylm[1],ylm[2]),las=1)
+    abline(h=0,lty=2)
+  }
+}
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#################################################
+
+######### HERRING STATE DERIVATION
+setwd(datadir)
+load('SPERA_andata_new.RData')
+
+#LOAD LANDINGS FROM FAO
+d<-read.csv('N:/cluster_2017/scratch/spera/data/stagingdat/fao_fish_landings/TS_FI_CAPTURE.csv',header=TRUE)
+spc<-read.csv('N:/cluster_2017/scratch/spera/data/stagingdat/fao_fish_landings/CL_FI_SPECIES_GROUPS.csv',header=TRUE)
+names(d)<-tolower(names(d))
+names(spc)<-tolower(names(spc))
+names(spc)[1]<-'species'
+dher<-subset(d,species=='HER' & country==124)
+
+d<-subset(dher,select=c('year','quantity'))
+names(d)[2]<-'her.land2'
+data<-merge(data,d,by=c('year'),all.x=TRUE,all.y=FALSE)
+
+
+#SELECT VARIABLES FOR STATE CALCULATION: ADD PRODUCTION EVEN THOUGH NOT IN CLUSTERS; REMOVE TOTAL BIOMASS BECAUSE CORRELATED WITH SSB
+a<-subset(cldat,clust %in% c(3,4))
+#dat<-subset(data,year>=1965,select=c('year','her.ajrat.rv','her.prod','her.metai.rv',as.character(a$var)))
+dat<-subset(data,year>=1965,select=c('year','her.prod','her.metai.rv',as.character(a$var)))
+
+(round(cor(dat,use='pairwise.complete.obs'),digits=2))
+
+#EXPONENTIAL TRANSFORM TO 'NORMALIZE'
+f<-function(x){transformTukey(x,plotit=FALSE)}
+dat<-data.frame(cbind(subset(dat,select='year'),apply(dat[,2:dim(dat)[2]],2,f)))
+
+f<-function(x){scale(x,center=TRUE,scale=TRUE)}
+dat<-data.frame(cbind(subset(dat,select='year'),apply(dat[,2:dim(dat)[2]],2,f)))
+
+#TRANSFORM TO ENSURE GAUSSIAN DISTRIBUTION
+#dat$her.spcv<-dat$her.spcv*-1
+#dat$her.spvar<-dat$her.spvar*-1
+dat$her.spnug<-dat$her.spnug*-1
+
+dats<-dat %>% gather(var,y,-year)
+#bb<-na.omit(bb)
+xyplot(y~year | var,data=dats,pch=15,type=c('p','l'))
+histogram(~y | var,data=dats)
+dats<-subset(dats,is.na(y)==FALSE)
+
+#d<-subset(dats,!(var %in% c('her.totwgt.rv','her.georng')))
+d<-dats
+mod<-gamm(y~as.factor(year),data=d,random=list(var=~1))
+pdat<-data.frame(year=sort(unique(d$year)))
+p<-predict(mod$gam,newdata=pdat,se.fit=TRUE)
+pdat$her.state<-p$fit
+pdat$her.state.se<-p$se.fit
+plot(pdat$year,pdat$her.state,pch=15)
+dat<-merge(dat,pdat,by=c('year'),all=TRUE)
+
+d2<-subset(dats,!(var %in% c('her.ssbc','her.rec1','her.prod')))
+mod2<-gamm(y~as.factor(year),data=d2,random=list(var=~1))
+pdat2<-data.frame(year=sort(unique(d2$year)))
+p2<-predict(mod2$gam,newdata=pdat2,se.fit=TRUE)
+pdat2$her.state<-p2$fit
+pdat2$her.state.se<-p2$se.fit
+plot(pdat2$year,pdat2$her.state,pch=15)
+plot(pdat$her.state,pdat2$her.state)
+dat2<-pdat
+
+
+cr<-cor(dat,use='pairwise.complete.obs',method='spearman')
+cr.r<-round(cr,digits=2)
+cr.t = as.data.frame(as.table(cr.r))#CORRELATIONS TABLE
+combinations=combn(colnames(cr.r),2,FUN=function(x){paste(x,collapse="_")})
+cr.t=cr.t[cr.t$Var1 != cr.t$Var2,]
+cr.t=cr.t[paste(cr.t$Var1,cr.t$Var2,sep="_") %in% combinations,]
+cr.t<-subset(cr.t,!(Var2 %in% c('year','her.state.se')) & !(Var1 %in% c('year','her.state.se')))
+
+cr.t<-cr.t[order(cr.t$Freq,decreasing=TRUE),]
+cr.t$Var1<-as.character(cr.t$Var1)
+cc<-data.frame(var1=sort(unique(cr.t$Var1)),
+               r=tapply(cr.t$Freq,cr.t$Var1,mean))
+
+#AVERAGE CORRELATION OF 'STATE' VARIABLES
+cc<-subset(cr.t,Var1!='her.state' & Var2!='her.state')
+mean(cc$Freq);#.47
+median(cc$Freq);#.51
+#mdr<-round(median(cc$Freq),digits=2)
+#MEAN=0.54; MEDIAN=0.56
+
+
+f<-function(d){
+  mod<-lm(y~year,data=d)
+  s<-summary(mod)
+  return(data.frame(b=s$coef[2,1]))
+}
+od<-ddply(dats,.(var),.fun=f)
+
+#COLOR SCHEME
+od$bc<-cut(od$b,breaks=seq(-.081,.081,length.out=21))
+rdat<-data.frame(x=seq(-max(abs(od$b)),max(abs(od$b)),length.out=10000))
+rdat$bc<-cut(rdat$x,breaks=seq(-.081,.081,length.out=21))
+rdat<-unique(subset(rdat,select=c('bc')))
+#cl<-colorRampPalette(c(blue2red(9),'darkred'))
+cl<-colorRampPalette(c('magenta4',blue2red(9),'red3','darkred'))
+rdat$cl<-cl(20)
+#plot(seq(1,20,1),seq(1,20,1),col=as.character(rdat$cl),pch=15)
+od<-merge(od,rdat,by=c('bc'),all.x=TRUE,all.y=FALSE)
+
+dats<-merge(dats,od,by=c('var'),all.x=TRUE,all.y=FALSE)
+
+
+#cls<-colorRampPalette(c('black','darkmagenta','hotpink','darkblue','lightskyblue','forestgreen','lawngreen','gold','orange','firebrick1','firebrick4'))
+#n<-length(unique(dats$var))
+#dum3<-data.frame(var=sort(unique(dats$var)),
+#                 cls=cls(n+2)[3:(n+2)])
+#dats<-merge(dats,dum3,by=c('var'),all.x=TRUE,all.y=FALSE)
+od<-od[order(od$b),]
+
+setwd(figsdir)
+pdf('herring_state_derivation_transform_allind.pdf',height=8,width=4)
+par(mfrow=c(9,2),mar=c(.5,1,0,0),oma=c(4,4,1,4))
+vr<-od$var
+for(i in 1:length(vr)){
+  d<-subset(dats,var==vr[i])
+  d<-na.omit(d)
+  ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
+  print(ylm)
+  asp<-aspline(d$year,d$y,xout=seq(min(d$year),max(d$year),length.out=1000))
+  plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE)
+  abline(h=0,col='black',lty=2,lwd=.5)
+  lines(asp$x,asp$y,col=alpha(as.character(unique(d$cl)),1),lwd=2)
+  points(d$year,d$y,col=alpha(as.character(unique(d$cl)),.3),cex=1,pch=16)
+  axis(2,at=ylm,las=1,cex.axis=.5,lwd=.1)
+  if(unique(d$var) %in% c('her.totwgt.rv','her.georng')){
+    axis(1,seq(1965,2015,5),labels=FALSE,cex.axis=.5,lwd=.1)
+    axis(1,seq(1965,2015,10),cex.axis=.5,lwd=.1)
+  } else NULL
+  mod<-lm(y~year,data=d)
+  pdat<-data.frame(year=seq(min(d$year),max(d$year),length.out=1000))
+  pdat$p<-predict(mod,newdata=pdat)
+  #lines(pdat$year,pdat$p,col=alpha('black',.5),lwd=.5)
+  s<-summary(mod)
+  b<-round(s$coef[2,1],digits=2)
+  legend('topright',gsub(' ','',paste(unique(d$var),'=',b)),bty='n',cex=.5)
+}
+
+
+
+dats$segtrue<-ifelse(dats$var%in% c('herjuv.fmass.rv','her.ajrat.rv'),FALSE,TRUE)
+#dats$segtrue<-TRUE
+
+par(mfrow=c(9,2),mar=c(.5,1,0,0),oma=c(4,4,1,4))
+vr<-od$var
+l<-list()
+for(i in 1:length(vr)){
+  d<-subset(dats,var==vr[i])
+  d<-na.omit(d)
+  #CHARACTERIZE TRENDS
+  if(length(unique(d$year))<=10){dff<-4
+  } else {dff<-5
+  }
+  bp<-floor(mean(d$year))
+  modl<-lm(y~year,data=d)
+  m<-breakpoints(y~year,data=d,h=3,breaks=1)
+  modst<-lm(y~breakfactor(m,breaks=length(unique(m$breakpoints))),data=d)
+  modnl<-lm(y~bs(year,degree=3,df=dff),data=d)
+  if(unique(d$segtrue)==TRUE){
+    modseg<-segmented(modl,seg.Z = ~year,psi=bp,control=seg.control(it.max=200))
+    dt<-data.frame(AIC(modl,modnl,modseg,modst))
+  } else {rm(modseg)
+    dt<-data.frame(AIC(modl,modnl,modst))
+  }
+  names(dt)<-ifelse(names(dt) %in% c('BIC'),'AIC',names(dt))
+  dt$md<-rownames(dt)
+  dt$AIC<-ifelse(dt$md=='modnl',dt$AIC+4,dt$AIC)
+  dt$AIC<-ifelse(dt$md=='modst',dt$AIC,dt$AIC)
+  dt$AIC<-ifelse(dt$md=='modseg',dt$AIC-2,dt$AIC)
+  dt$AIC<-ifelse(dt$md=='modl',dt$AIC,dt$AIC)
+  dt<-subset(dt,AIC==min(dt$AIC))
+  mtype<-dt$md
+
+  if(dt$md=='modnl'){
+    modl<-modnl
+    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
+    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
+  } else if (dt$md=='modseg'){
+    modl<-modseg
+    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
+    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
+  } else if (dt$md=='modst'){
+    modl<-modst
+    d2<-data.frame(year=sort(unique(d$year)))
+    d3<-data.frame(year=sort(unique(d$year)))
+  } else {
+    modl<-modl
+    d2<-data.frame(year=seq(min(d$year),max(d$year),length.out=100))
+    d3<-data.frame(year=seq(min(d$year),max(d$year),1))
+  }
+
+  p<-predict(modl,newdata=d3,se.fit=TRUE,type='response')
+  d3$p<-p$fit
+  d3$se<-p$se.fit
+  d3$upr<-d3$p+(1.96*d3$se)
+  d3$lwr<-d3$p-(1.96*d3$se)
+
+  s<-summary(modl)
+  r2<-round(s$r.squared,digits=2)
+  p<-predict(modl,newdata=d2,se.fit=TRUE,type='response')
+  d2$p<-p$fit
+  d2$se<-p$se.fit
+  d2$upr<-d2$p+(1.96*d2$se)
+  d2$lwr<-d2$p-(1.96*d2$se)
+  ylm<-c(min(c(d$y,d2$lwr)),max(c(d$y,d2$upr)))
+
+  ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
+  plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE)
+  polygon(c(d2$year,d2$year[length(d2$year):1]),c(d2$upr,d2$lwr[length(d2$lwr):1]),col=alpha(as.character(unique(d$cl)),.3),border=NA)
+  abline(h=0,col='black',lty=2,lwd=.5)
+  points(d$year,d$y,col=alpha(as.character(unique(d$cl)),.3),cex=1,pch=16)
+  axis(2,at=ylm,las=1,cex.axis=.5,lwd=.1)
+  if(unique(d$var) %in% c('her.totwgt.rv','her.georng')){
+    axis(1,seq(1965,2015,5),labels=FALSE,cex.axis=.5,lwd=.1)
+    axis(1,seq(1965,2015,10),cex.axis=.5,lwd=.1)
+  } else NULL
+  lines(d2$year,d2$p,col=as.character(unique(d$cl)),lwd=2)
+  s<-summary(modl)
+  r2<-round(s$r.squared,digits=2)
+  legend('topright',gsub(' ','',paste(unique(d$var),'=',r2)),bty='n',cex=.5)
+  d2$year<-round(d2$year,digits=0)
+  dout<-d3
+  dout$chng<-dout$p[1]-dout$p[length(dout$p)]
+  dout$var<-vr[i]
+
+  #GET BREAKPOINT
+  if(dt$md=='modst'){
+    dm<-data.frame(m$X)
+    dm$id<-seq(1,dim(dm)[1],1)
+    dm$bp<-breakfactor(m,breaks=length(unique(m$breakpoints)))
+    dout$bpt<-max(subset(dm,bp=='segment1')$year)
+  } else if (dt$md=='modseg'){
+    dout$bpt<-round(data.frame(modseg$psi)$Est.,digits=0)
+  } else {
+    dout$bpt<-subset(d2,p==max(d2$p))$year[1]
+  }
+  dout<-data.frame(dout)
+  dout$md<-dt$md
+  l[[i]]<-dout
+}
+z<-data.frame(do.call('rbind',l))
+#ddply(dats,.(var),.fun=f)
+z<-z[order(z$chng),]
+
+#IF BREAK IS A MINIMUM, TAKE START OF LINEAR CHANGE INSTEAD
+f<-function(d){
+  pbt<-subset(d,year==unique(d$bpt))
+  if(pbt$p<=mean(d$p)){
+    bpt<-subset(d,p==max(d$p))$year[1]
+  } else { bpt<-unique(d$bpt)
+  }
+
+  if(unique(d$var)=='her.metai.rv'){
+    bpt<-min(d$year,na.rm=TRUE)
+  } else  bpt<-bpt
+
+  d$bpt<-bpt
+  return(d)
+}
+z<-ddply(z,.(var),.fun=f)
+
+plot(seq(1,20,1),seq(1,20,1),col='white',pch=15)
+colorbar.plot(10,10,col=as.character(rdat$cl),strip=seq(-.081,0.081,length.out=20),strip.width=.05,strip.length=.75)
+dev.off()
+
+
+
+###FORMAT CHANGEPOINTS AND WRITE TO FILE
+a<-unique(subset(z,!(var %in% c('her.totwgt.rv','her.georng')),select=c('bpt','var','md')))
+a<-a[order(a$bpt,decreasing=TRUE),]
+a$id<-seq(1,dim(a)[1],1)
+a$lbl<-c( 'Herring weight-at-age','Herring SSB','Herring spatial variance','Juvenile herring metabolic rate','Herring productivity','Average mass of herring','Hering spatial covariance','Average length of herring','Average length of herrng larve','Average mass of juvenile herring','Ratio of adult to juvenile herring','Herring condition factor','Herring metabolic rate','Small-scale spatial variance of herring','Size evenness of herring','Recruitment at age 1')
+a$bpt2<-ifelse(a$var=='her.cf.rv',1969,a$bpt)
+a$bpt2<-ifelse(a$var=='her.ajrat.rv',1967,a$bpt2)
+a$bpt2<-ifelse(a$var=='her.szpe.rv',1968,a$bpt2)
+a$bpt2<-ifelse(a$var=='herlrv.len',1974,a$bpt2)
+a$bpt2<-ifelse(a$var=='her.metai.rv',1966,a$bpt2)
+a$cl<-ifelse(a$var %in% c('her.waa','her.metai.rv','herjuv.metai.rv','her.cf.rv'),'dodgerblue3',NA)
+a$cl<-ifelse(a$var %in% c('her.ssbc','her.prod'),'firebrick3',a$cl)
+a$cl<-ifelse(a$var %in% c('her.spvar','her.spcv','her.spnug'),'forestgreen',a$cl)
+a$cl<-ifelse(a$var %in% c('her.fmass.rv','her.len.rv','herjuv.fmass.rv'),'pink',a$cl)
+a$cl<-ifelse(a$var %in% c('her.rec1','herlrv.len'),'gold',a$cl)
+a$cl<-ifelse(a$var %in% c('her.ajrat.rv','her.szpe.rv','her.ajrat.rv'),'gray',a$cl)
+#write.csv(a,'changepoints.csv',row.names=FALSE)
+
+
+
+
+
+
+
+
 
 
 
@@ -1899,7 +1503,214 @@ odat2$aph<-rescale(odat2$nindex,newrange=c(.1,.99))
 library(RColorBrewer)
 
 setwd(figsdir)
-pdf('herring_state_plots_transform_sens.pdf',height=8,width=10)
+pdf('herring_state_plots_transform_allinds.pdf',height=8,width=10)
+par(mfrow=c(2,2),mar=c(4,4,1,1))
+cl0<-'lightskyblue1'
+cl1<-'lightskyblue2'
+cl2<-'lightskyblue3'
+cl3<-'dodgerblue3'
+cl0<-'greenyellow'
+cl1<-'lawngreen'
+cl2<-'green3'
+cl3<-'green4'
+cl0<-'gray70'
+cl1<-'gray50'
+cl2<-'gray30'
+cl3<-'gold'
+b<-na.omit(subset(dat,select=c('year','her.state','her.state.se')))
+b$upr90<-b$her.state+(1.645*b$her.state.se)
+b$lwr90<-b$her.state-(1.645*b$her.state.se)
+b$upr95<-b$her.state+(1.96*b$her.state.se)
+b$lwr95<-b$her.state-(1.96*b$her.state.se)
+b$upr99<-b$her.state+(2.56*b$her.state.se)
+b$lwr99<-b$her.state-(2.56*b$her.state.se)
+ylm<-c(-1.25,1.5)
+plot(0,0,ylim=ylm,las=1,xlab='Year',ylab='Herring state',xlim=c(1965,2016),xaxt='n')
+axis(1,at=seq(1965,2015,5),labels=seq(1965,2015,5),cex=.8)
+#axis(1,at=seq(1965,2015,10),labels=TRUE)
+abline(h=0,col='lightgray')
+lines(b$year,b$her.state,pch=15)
+polygon(c(b$year,b$year[length(b$year):1]),c(b$upr99,b$lwr99[length(b$lwr99):1]),col=alpha(cl0,.75),border=NA)
+polygon(c(b$year,b$year[length(b$year):1]),c(b$upr95,b$lwr95[length(b$lwr95):1]),col=alpha(cl1,.75),border=NA)
+polygon(c(b$year,b$year[length(b$year):1]),c(b$upr90,b$lwr90[length(b$lwr90):1]),col=alpha(cl2,.75),border=NA)
+asp<-aspline(b$year,b$her.state,xout=seq(min(b$year),max(b$year),length.out=1000))
+lines(asp$x,asp$y,col=cl3,lwd=2)
+points(b$year,b$her.state,col=alpha(cl3,.5),pch=16,cex=1.5)
+points(odat2$year,rep(-1.5,dim(odat2)[1]),col=alpha('darkred',odat2$aph),pch='|',cex=5)
+clp<-colorRampPalette(brewer.pal(9,'Reds'))
+dm<-data.frame(x=seq(1,20,1),
+               y=seq(1,20,1),
+               cl=clp(20))
+colorbar.plot(2005,1,strip=dm$x,col=as.character(dm$cl),horizontal=TRUE,strip.width=.04,strip.length=.5)
+
+wn<-9
+yr<-subset(b,year>=min(b$year)+floor(wn/2) & year<= max(b$year)-floor(wn/2))$year
+for(i in 1:length(yr)){
+  d<-subset(b,year>=yr[i]-4 & year<= yr[i]+4)
+  mod<-lm(her.state~year,data=d,weights=1/d$her.state.se)
+  s<-summary(mod)
+  l[[i]]<-data.frame(year=yr[i],
+                     b=s$coef[2,1],
+                     se=s$coef[2,2])
+}
+sdat<-data.frame(do.call('rbind',l))
+
+xlm<-c(1965,2015)
+plot(sdat$year,sdat$b,type='l',las=1,xlim=xlm,xaxt='n',col='black',xlab='Year',ylab='Slope',lwd=2)
+axis(1,at=seq(1965,2015,5),labels=TRUE)
+abline(h=0,lty=2)
+plot(sdat$year,sdat$se,type='l',las=1,xlim=xlm,xaxt='n',col='black',xlab='Year',ylab='Variance',lwd=2)
+axis(1,at=seq(1965,2015,5),labels=TRUE)
+abline(h=0,lty=2)
+
+
+xts<-ts(b$year, start=c(1965,1), frequency=1)
+yts<-ts(b$her.state, start=c(1965,1), frequency=1)
+lmodel <- lm(yts ~ xts)
+#################################################
+buildModReg <- function(v) {
+  dV <- exp(v[1])
+  dW <- exp(v[2:3]) # Variances for mu, lambda
+  m0 <- v[4:5] # Initial levels for mu, lambda
+  dlmModReg(xts, dV = dV, dW = dW, m0 = m0)
+}
+
+#GUESSES FOR INITIAL PARAMETERS
+varguess <- var(diff(yts), na.rm = TRUE)
+mu0guess <- as.numeric(yts[1])
+lambda0guess <- mean(diff(yts), na.rm = TRUE)
+
+#GET ESTIMATES FOR INITIAL PARAMETERS
+parm <- c(log(varguess), log(varguess/5), log(varguess/5),mu0guess, lambda0guess)
+mle <- dlmMLE(yts, parm = parm, build = buildModReg)
+
+#ESTIMATE MODEL AND THEN SMOOTH USING KALMAN
+model <- buildModReg(mle$par)
+models <- dlmSmooth(yts, model)
+
+#GET CONFIDENCE INTERVALS
+alpha.s = xts(models$s[-1,1,drop=FALSE],b$year)
+beta.s = xts(models$s[-1,2,drop=FALSE], b$year)
+
+mse.list = dlmSvd2var(models$U.S, models$D.S)
+se.mat = t(sapply(mse.list, FUN=function(x) sqrt(diag(x))))
+se.xts = xts(se.mat[-1, ], index(beta.s))
+colnames(se.xts) = c("alpha", "beta")
+b.u = beta.s  + 1.96*se.xts$beta
+b.l = beta.s  - 1.96*se.xts$beta
+
+out<-data.frame(year=b$year,
+                a=models$s[-1,1],
+                b=models$s[-1,2],
+                b.upr=b.u,
+                b.lwr=b.l,
+                b.se=se.xts$beta)
+out$b<-(out$b*1000)
+plot(out$year,out$b,type='l',ylim=c(-34.3034,-34.302),las=1,xlim=c(1965,2017),xaxt='n',col='black',xlab='Year',ylab='Slope',lwd=2)
+axis(1,at=seq(1965,2015,5),labels=TRUE)
+abline(v=1984,lty=2)
+points(out$year,out$b,col=alpha(cl3,1),pch=16,cex=1.5)
+points(out$year,out$b,col=alpha('gray20',1),pch=1,cex=1.5,lwd=.5)
+
+dd<-subset(data,select=c('year','her.ssbc','her.state'))
+dd<-merge(dd,out,by=c('year'),all=FALSE)
+dd<-slide(dd,Var='b',slideBy=-3,NewVar='bt3')
+
+ddd<-na.omit(subset(dd,select=c('her.ssbc','b')))
+cf<-ccf(ddd$her.ssbc,ddd$b,lag.max=15)
+cdat<-data.frame(x=seq(-15,15,1),
+                 y=cf$acf)
+plot(0,0,ylim=c(0,.8),las=1,xlab='Lag',ylab='Correlation',xlim=c(-15,15),axes=FALSE,col='white',pch='.')
+axis(1,seq(-15,15,5))
+axis(2,seq(0,.8,.2),las=1)
+rect(xleft=-20,ybottom=0,xright=0,ytop=2,col='gray90',border=NA)
+abline(h=.28,lty=2,col='blue')
+points(cdat$x,cdat$y,type='h',ylim=c(0,.8),las=1,col=ifelse(cdat$x==3,'firebrick3','black'),lwd=2)
+points(cdat$x,cdat$y,pch=16,col=ifelse(cdat$x==3,'firebrick3','black'),cex=1)
+abline(h=0)
+
+20+3.34
+(3.43*10^-2)-20
+
+#CHARACTERIZE TRENDS
+bb<-subset(dat,select=c('year','her.state','her.state.se'))
+modl<-lm(her.state~year,data=bb,weights=1/bb$her.state.se)
+m<-breakpoints(her.state~year,data=bb,h=3,breaks=3)
+modst<-lm(her.state~breakfactor(m,breaks=length(unique(m$breakpoints))),data=bb,weights=1/bb$her.state.se)
+modnl<-lm(her.state~bs(year,degree=3,df=5),data=bb,weights=1/bb$her.state.se)
+bp<-median(bb$year)
+modd<-lm(her.state~year,data=bb)
+modseg<-segmented(modd,seg.Z = ~year,psi=bp,control=seg.control(it.max=200),weights=1/bb$her.state.se)
+
+dt<-data.frame(AIC(modl,modnl,modseg,modst))
+names(dt)<-ifelse(names(dt) %in% c('BIC'),'AIC',names(dt))
+dt$md<-rownames(dt)
+dt$AIC<-ifelse(dt$md=='modnl',dt$AIC+2,dt$AIC)
+dt1<-subset(dt,AIC==min(dt$AIC))
+pdat<-data.frame(year=seq(min(b$year),max(b$year),length.out=100))
+pdat2<-data.frame(year=sort(unique(b$year)))
+pdat$pseg<-predict(modseg,newdata=pdat)
+pnl<-predict(modnl,newdata=pdat,se.fit=TRUE)
+pdat$pnl<-pnl$fit
+pdat$pnl.se<-pnl$se.fit
+pdat$upr95<-pdat$pnl+(1.96*pdat$pnl.se)
+pdat$lwr95<-pdat$pnl-(1.96*pdat$pnl.se)
+pdat$upr90<-pdat$pnl+(1.645*pdat$pnl.se)
+pdat$lwr90<-pdat$pnl-(1.645*pdat$pnl.se)
+pdat$upr99<-pdat$pnl+(2.56*pdat$pnl.se)
+pdat$lwr99<-pdat$pnl-(2.56*pdat$pnl.se)
+pdat$pl<-predict(modl,newdata=pdat)
+pdat2$pst<-predict(modst,newdata=pdat2)
+
+plot(0,0,ylim=ylm,las=1,xlab='Year',ylab='Herring state',xlim=c(1965,2016),xaxt='n')
+axis(1,at=seq(1965,2015,5),labels=TRUE)
+abline(h=0,col='gray')
+
+polygon(c(pdat$year,pdat$year[length(pdat$year):1]),c(pdat$upr99,pdat$lwr99[length(pdat$lwr99):1]),col=alpha(cl0,.75),border=NA)
+polygon(c(pdat$year,pdat$year[length(pdat$year):1]),c(pdat$upr95,pdat$lwr95[length(pdat$lwr95):1]),col=alpha(cl1,.75),border=NA)
+polygon(c(pdat$year,pdat$year[length(pdat$year):1]),c(pdat$upr90,pdat$lwr90[length(pdat$lwr90):1]),col=alpha(cl2,.75),border=NA)
+
+points(b$year,b$her.state,col=alpha(cl3,1),pch=16,cex=1.5)
+points(b$year,b$her.state,col=alpha(cl2,.75),pch=1,cex=1.5,lwd=.5)
+lines(pdat$year,pdat$pnl,col=cl3,lty=1)
+#lines(pdat$year,pdat$pl,col='black',lty=2)
+#lines(pdat$year,pdat$pseg,col='black',lty=2)
+#lines(pdat2$year,pdat2$pst,col='black',lty=3)
+#lines(pdat$year,pdat$pseg,lty=3,col='red')
+rlm<-round(summary(modl)$r.sq,digits=2)
+rseg<-round(summary(modseg)$r.sq,digits=2)
+rst<-round(summary(modst)$r.sq,digits=2)
+rnl<-round(summary(modnl)$r.sq,digits=2)
+legend('top',c(paste('Spline (r2=',rnl,')'),paste('Linear (r2=',rlm,')'),paste('Structural (r2=',rst,')')),bty='n',lty=c(1,2,3))
+points(odat2$year,rep(-1.5,dim(odat2)[1]),col=alpha('darkred',odat2$aph),pch='|',cex=5)
+
+dev.off()
+
+
+
+
+
+
+
+mod<-lm(her.state~year,data=dat)
+
+
+
+z<-dat %>% gather(var,y,-year)
+z<-subset(z,!(var %in% c('her.georng','her.totwgt.rv')))
+f<-function(d){
+  d<-subset(d,is.na(y)==FALSE)
+  return(data.frame(nindex=length(unique(d$var))))
+}
+odat2<-ddply(z,.(year),.fun=f)
+odat2<-subset(odat2,nindex>0)
+odat2$cx<-rescale(odat2$nindex,newrange=c(.5,5))
+odat2$aph<-rescale(odat2$nindex,newrange=c(.1,.99))
+
+library(RColorBrewer)
+
+setwd(figsdir)
+pdf('herring_state_plots_transform_sens_allinds.pdf',height=8,width=10)
 par(mfrow=c(2,2),mar=c(4,4,1,1))
 cl0<-'lightskyblue1'
 cl1<-'lightskyblue2'

@@ -258,3 +258,111 @@ dats<-subset(dats,year>=1965)
 setwd('C:/Users/sailfish/Documents/aalldocuments/literature/research/active/SPERA/code/analysis/Herring_state_2018/SI/SI_data')
 save(dats,file='dats.RData')
 
+
+
+
+
+
+
+
+###################################################################
+
+setwd(datadir)
+load('SPERA_andata_new.RData')
+#load('SPERA_andata_spawnar.RData')
+#load('SPERA_andata.RData')
+nms<-names(data)
+nms<-nms[grepl('her',nms)==TRUE]
+nms<-nms[grepl('\\.se',nms)==FALSE]
+nms<-nms[grepl('\\.tplus',nms)==FALSE]
+nms<-nms[grepl('\\.tmin',nms)==FALSE]
+nms<-nms[grepl('\\.cat',nms)==FALSE]
+nms<-nms[grepl('sp\\.n',nms)==FALSE]
+df<-data[,names(data) %in% c('year',nms)]
+df<-subset(df,year>=1965)
+df<-df[,!(names(df) %in% c('herjuv.prey.bof','her.jf.bof','her.preytot.bof','her.land','her.expr','herjuv.spvar','herjuv.spcv','herjuv.sprng','herjuv.spnug','her.szdiv.rv','her.dvm2.rv','herjuv.dvm2.rv','her.dur2.rv','herjuv.dur2.rv','her.durng.rv','herjuv.durng.rv','her.state','her.ssb','her.land.pct1','her.land.spdiv','her.land.sprich','herlrv.dep.bof','herlrv.spcv','herlrv.spnug','herlrv.sprng','herlrv.spvar','herjuv.dumx.rv'))]
+df$her.dvm.rv<-ifelse(df$her.dvm.rv==Inf,NA,df$her.dvm.rv)
+######
+
+#CONVERT TO SHORT FORM, EXAMINE NORMALITY, TRANSFORM USING BEST EXPONENTIAL TRANSFORM
+dfs<-df %>% gather(var,y,-year)
+
+#TRANSFORM VARIABLES TO OPTIMIZE NORMALITY
+f<-function(d){
+if(unique(d$var)=='her.spnug'){
+    NULL
+    } else { d$y<-transformTukey(d$y,plotit=FALSE)
+         }
+  return(d)
+}
+dfs<-ddply(dfs,.(var),.fun=f)
+
+
+f<-function(d){
+  d$y<-(d$y-mean(d$y,na.rm=TRUE))/sd(d$y,na.rm=TRUE)
+  return(d)
+}
+dfs<-ddply(dfs,.(var),.fun=f)
+
+dfl<-spread(data=dfs,key=var, value=y)
+
+
+setwd(figsdir)
+dm<-read.csv('dm.csv',header=TRUE)
+nms<-subset(dm,select=c('var','lbl.short'))
+names(nms)<-c('var','lbl')
+dff2<-dfs
+dff2<-merge(dff2,nms,by=c('var'),all.x=TRUE,all.y=FALSE)
+dff2<-unique(subset(dff2,select=c('var','lbl')))
+dff2$lbl<-ifelse(dff2$var=='her.dvm.rv','Herring diurnal migration',as.character(dff2$lbl))
+dff2<-spread(data=dff2,key=var, value=lbl)
+
+#ALL METRICS
+d<-subset(dfs,is.na(y)==FALSE)
+mod<-gamm(y~as.factor(year),data=d,random=list(var=~1))
+pdat<-data.frame(year=sort(unique(d$year)))
+p<-predict(mod$gam,newdata=pdat,se.fit=TRUE)
+pdat$her.state.all<-p$fit
+pdat$her.state.all.se<-p$se.fit
+
+#FINAL INDEX
+d<-subset(dfs,var %in% c('herlrv.len','her.len.rv','her.cf.rv','herjuv.metai.rv','herjuv.fmass.rv','her.rec1','her.prod','her.metai.rv','her.spcv','her.spnug','her.spvar','her.ajrat.rv','her.fmass.rv','her.szpe.rv','her.ssbc','her.waa') & is.na(y)==FALSE)
+mod<-gamm(y~as.factor(year),data=d,random=list(var=~1))
+pdat0<-data.frame(year=sort(unique(d$year)))
+p<-predict(mod$gam,newdata=pdat0,se.fit=TRUE)
+pdat0$her.state.fin<-p$fit
+pdat0$her.state.fin.se<-p$se.fit
+pdat<-merge(pdat,pdat0,by=c('year'),all.x=TRUE,all.y=FALSE)
+
+
+#INCLUDING INCREASING HEALTH INDICES
+d<-subset(dfs,var %in% c('herlrv.len','her.len.rv','her.cf.rv','herjuv.metai.rv','herjuv.fmass.rv','her.rec1','her.prod','her.metai.rv','her.spcv','her.spnug','her.spvar','her.ajrat.rv','her.fmass.rv','her.szpe.rv','her.ssbc','her.waa','herjuv.totwgt.rv','her.totwgt.rv','her.georng') & is.na(y)==FALSE)
+mod<-gamm(y~as.factor(year),data=d,random=list(var=~1))
+pdat0<-data.frame(year=sort(unique(d$year)))
+p<-predict(mod$gam,newdata=pdat0,se.fit=TRUE)
+pdat0$her.state.19ind<-p$fit
+pdat0$her.state.19ind.se<-p$se.fit
+pdat<-merge(pdat,pdat0,by=c('year'),all.x=TRUE,all.y=FALSE)
+
+#RV DATA OMITTED
+d<-subset(dfs,var %in% c('herlrv.len','her.cf.rv','her.rec1','her.prod','her.ssbc','her.waa') & is.na(y)==FALSE)
+mod<-gamm(y~as.factor(year),data=d,random=list(var=~1))
+pdat0<-data.frame(year=sort(unique(d$year)))
+p<-predict(mod$gam,newdata=pdat0,se.fit=TRUE)
+pdat0$her.state.norv<-p$fit
+pdat0$her.state.norv.se<-p$se.fit
+pdat<-merge(pdat,pdat0,by=c('year'),all.x=TRUE,all.y=FALSE)
+
+#ASSESSMENT DATA OMITTED
+d<-subset(dfs,var %in% c('herlrv.len','her.len.rv','her.cf.rv','herjuv.metai.rv','herjuv.fmass.rv','her.metai.rv','her.spcv','her.spnug','her.spvar','her.ajrat.rv','her.fmass.rv','her.szpe.rv','her.waa') & is.na(y)==FALSE)
+mod<-gamm(y~as.factor(year),data=d,random=list(var=~1))
+pdat0<-data.frame(year=sort(unique(d$year)))
+p<-predict(mod$gam,newdata=pdat0,se.fit=TRUE)
+pdat0$her.state.noass<-p$fit
+pdat0$her.state.noass.se<-p$se.fit
+pdat<-merge(pdat,pdat0,by=c('year'),all.x=TRUE,all.y=FALSE)
+
+a<-subset(pdat,select=c('her.state.all','her.state.fin','her.state.norv','her.state.noass'))
+plot(a,pch=16)
+
+save(pdat,file='C:\\Users\\sailfish\\Documents\\aalldocuments\\literature\\research\\active\\SPERA\\code\\analysis\\Herring_state_2018\\SI\\SI_data\\pdat.RData')
