@@ -106,6 +106,97 @@ mpdat0<-mpdat
 
 
 
+setwd(datadir)
+load('SPERA_andata_new.RData')
+nms<-names(data)
+nms<-nms[grepl('her',nms)==TRUE]
+nms<-nms[grepl('\\.se',nms)==FALSE]
+nms<-nms[grepl('\\.tplus',nms)==FALSE]
+nms<-nms[grepl('\\.tmin',nms)==FALSE]
+nms<-nms[grepl('\\.cat',nms)==FALSE]
+nms<-nms[grepl('sp\\.n',nms)==FALSE]
+df<-data[,names(data) %in% c('year',nms)]
+df<-subset(df,year>=1965)
+df<-df[,!(names(df) %in% c('herjuv.prey.bof','her.jf.bof','her.preytot.bof','her.land','her.expr','herjuv.spvar','herjuv.spcv','herjuv.sprng','herjuv.spnug','her.szdiv.rv','her.dvm2.rv','herjuv.dvm2.rv','her.dur2.rv','herjuv.dur2.rv','her.durng.rv','herjuv.durng.rv','her.state','her.ssb','her.land.pct1','her.land.spdiv','her.land.sprich','herlrv.dep.bof','herlrv.spcv','herlrv.spnug','herlrv.sprng','herlrv.spvar','herjuv.dumx.rv'))]
+df$her.dvm.rv<-ifelse(df$her.dvm.rv==Inf,NA,df$her.dvm.rv)
+
+df<-df[,!(names(df) %in% c('her.eggprod','her.tbio','her.totno.rv','herjuv.totno.rv'))]
+
+#CONVERT TO SHORT FORM, EXAMINE NORMALITY, TRANSFORM USING BEST EXPONENTIAL TRANSFORM
+dfs<-df %>% gather(var,y,-year)
+
+
+#TRANSFORM VARIABLES TO OPTIMIZE NORMALITY
+f<-function(d){
+if(unique(d$var)=='her.spnug'){
+    NULL
+    } else { d$y<-transformTukey(d$y,plotit=FALSE)
+         }
+  return(d)
+}
+dfs<-ddply(dfs,.(var),.fun=f)
+
+f<-function(d){
+  d$y<-(d$y-mean(d$y,na.rm=TRUE))/sd(d$y,na.rm=TRUE)
+  return(d)
+}
+dfs<-ddply(dfs,.(var),.fun=f)
+
+dfl<-spread(data=dfs,key=var, value=y)
+
+a<-subset(dfl,select=c('year','her.ssbc','her.fmass.rv'))
+a<-slide(a,Var='her.ssbc',slideBy=6,NewVar='her.ssbc.t6')
+a<-slide(a,Var='her.ssbc',slideBy=5,NewVar='her.ssbc.t5')
+mod<-lm(her.ssbc.t6~her.fmass.rv,data=a)
+a$e<-residuals(mod)
+plot(a$year,a$e,type='b')
+
+2*pt(2.117,2,lower=FALSE)
+cor.test(a$her.ssbc.t6,a$her.fmass.rv)
+2*pt(7.8582,37,lower=FALSE)
+
+aa<-na.omit(subset(a,select=c('her.ssbc','her.fmass.rv')))
+ccf(aa$her.ssbc,aa$her.fmass.rv)
+
+a<-na.omit(a)
+ssize<-seq(5,37,2)
+ll<-list()
+for(j in 1:length(ssize)){
+print(n)
+n<-ssize[j]
+n2<-floor(n/2)
+yrs<-seq(min(a$year)+n2,max(a$year)-n2,1)
+l<-list()
+for(i in 1:length(yrs)){
+    d<-subset(a,year>=yrs[i]-n2 & year<=yrs[i]+n2)
+mod<-lm(her.ssbc.t6~her.fmass.rv,data=d)
+s<-summary(mod)
+l[[i]]<-data.frame(year=yrs[i],
+                   r2=round(s$r.squared,digits=2),
+                   n=ssize[j])
+}
+ll[[j]]<-data.frame(do.call('rbind',l))
+}
+dt<-data.frame(do.call('rbind',ll))
+
+dum<-data.frame(n=ssize,
+        cls=colorRampPalette(brewer.pal(9,'Blues'))(length(ssize)))
+dt<-merge(dt,dum,by=c('n'),all.x=TRUE,all.y=FALSE)
+
+dt2<-data.frame(n=sort(unique(dt$n)),
+                r2=tapply(dt$r2,dt$n,mean),
+                r2sd=tapply(dt$r2,dt$n,sd))
+dt2$upr<-dt2$r2+dt2$r2sd
+dt2$lwr<-dt2$r2-dt2$r2sd
+
+plot(dt2$n,dt2$r2,pch=16,las=1,ylim=c(0,.65),xlab='Time-series length',ylab='Proportion of variance explained',cex=2)
+polygon(c(dt2$n,dt2$n[length(dt2$n):1]),c(dt2$upr,dt2$lwr[length(dt2$lwr):1]),col=alpha('gray20',.3),border=NA)
+points(dt2$n,dt2$r2,pch=16,cex=2,col='red3')
+points(dt2$n,dt2$r2,pch=1,cex=2)
+
+plot(dt$year,dt$r2,las=1,pch=15,col=alpha(as.character(dt$cls),.4))
+plot(dt$n,dt$r2,pch=16,col=alpha(as.character(dt$cls),.4),cex=2,ylim=c(0,1))
+points(dt$n,dt$r2,pch=1,cex=2)
 
 setwd(datadir)
 load('SPERA_andata_new.RData')
@@ -1600,6 +1691,43 @@ rvwreadfun.ss<-function(){
 }
 
 rvw<-rvwreadfun.ss()
+
+
+
+####DETERMINES MINIMUM DISTANCE BETWEEN SAMPLING FOR EACH YEAR
+rvw<-rvwreadfun.ss()
+a<-unique(subset(rvw,select=c('year','lon','lat')))
+a2<-a
+a2$id<-seq(1,dim(a2)[1],1)
+
+f<-function(d){
+d2<-a
+d2$dist<-deg.dist(d$lon,d$lat,a$lon,a$lat)
+d2<-subset(d2,dist>0)
+return(subset(d2,dist==min(d2$dist)))
+}
+z<-ddply(a2,.(id),.fun=f,.progress='text')
+
+zz<-data.frame(dist=tapply(z$dist,z$year,min))
+
+
+load("BoF_larval_herring_lengths_spera_spawnar.RData");larvs<-dat
+
+a<-unique(subset(larvs,select=c('year','lon','lat')))
+a2<-a
+a2$id<-seq(1,dim(a2)[1],1)
+
+f<-function(d){
+d2<-a
+d2$dist<-deg.dist(d$lon,d$lat,a$lon,a$lat)
+d2<-subset(d2,dist>0)
+return(subset(d2,dist==min(d2$dist)))
+}
+z<-ddply(a2,.(id),.fun=f,.progress='text')
+
+zz<-data.frame(dist=tapply(z$dist,z$year,min))
+
+
 
 a<-unique(subset(rvw,select=c('lon','lat')))
 plot(a$lon,a$lat,pch=16,col=alpha('firebrick',.4),las=1,xlab='Longitude',ylab='Latitude',cex=.5)

@@ -146,13 +146,20 @@ dfl<-spread(data=dfs,key=var, value=y)
 
 a<-subset(dfl,select=c('year','her.ssbc','her.fmass.rv'))
 a<-slide(a,Var='her.ssbc',slideBy=6,NewVar='her.ssbc.t6')
+a<-slide(a,Var='her.ssbc',slideBy=5,NewVar='her.ssbc.t5')
 mod<-lm(her.ssbc.t6~her.fmass.rv,data=a)
+a$e<-residuals(mod)
+plot(a$year,a$e,type='b')
+
+2*pt(2.117,2,lower=FALSE)
+cor.test(a$her.ssbc.t6,a$her.fmass.rv)
+2*pt(7.8582,37,lower=FALSE)
 
 aa<-na.omit(subset(a,select=c('her.ssbc','her.fmass.rv')))
 ccf(aa$her.ssbc,aa$her.fmass.rv)
 
 a<-na.omit(a)
-ssize<-seq(5,39,2)
+ssize<-seq(5,37,2)
 ll<-list()
 for(j in 1:length(ssize)){
 print(n)
@@ -179,14 +186,13 @@ dt<-merge(dt,dum,by=c('n'),all.x=TRUE,all.y=FALSE)
 dt2<-data.frame(n=sort(unique(dt$n)),
                 r2=tapply(dt$r2,dt$n,mean),
                 r2sd=tapply(dt$r2,dt$n,sd))
-dt2$upr<-dt2$r2+(1.96*dt2$r2se)
-dt2$lwr<-dt2$r2-(1.96*dt2$r2se)
+dt2$upr<-dt2$r2+dt2$r2sd
+dt2$lwr<-dt2$r2-dt2$r2sd
 
-plot(dt2$n,dt2$r2,pch=16,las=1,ylim=c(.2,.65),xlab='Time-series length',ylab='Proportion of variance explained',cex=2)
-f<-function(d){lines(c(d$n,d$n),c(d$r2+(1*d$r2sd),d$r2-(1*d$r2sd)),col=alpha('black',.4))}
-zz<-dlply(dt2,.(n),.fun=f)
-
-  #polygon(c(pdatsm$year,pdatsm$year[length(pdatsm$year):1]),c(pdatsm$upr,pdatsm$lwr[length(pdatsm$lwr):1]),col=alpha(as.character(unique(cl$cl)),.3),border=NA)
+plot(dt2$n,dt2$r2,pch=16,las=1,ylim=c(0,.65),xlab='Time-series length',ylab='Proportion of variance explained',cex=2)
+polygon(c(dt2$n,dt2$n[length(dt2$n):1]),c(dt2$upr,dt2$lwr[length(dt2$lwr):1]),col=alpha('gray20',.3),border=NA)
+points(dt2$n,dt2$r2,pch=16,cex=2,col='red3')
+points(dt2$n,dt2$r2,pch=1,cex=2)
 
 plot(dt$year,dt$r2,las=1,pch=15,col=alpha(as.character(dt$cls),.4))
 plot(dt$n,dt$r2,pch=16,col=alpha(as.character(dt$cls),.4),cex=2,ylim=c(0,1))
@@ -1083,6 +1089,74 @@ for(i in 1:length(vr)){
 z<-data.frame(do.call('rbind',l))
 #ddply(dats,.(var),.fun=f)
 z<-z[order(z$chng),]
+
+#IF BREAK IS A MINIMUM, TAKE START OF LINEAR CHANGE INSTEAD
+f<-function(d){
+  pbt<-subset(d,year==unique(d$bpt))
+  if(pbt$p<=mean(d$p)){
+    bpt<-subset(d,p==max(d$p))$year[1]
+  } else { bpt<-unique(d$bpt)
+  }
+
+  if(unique(d$var)=='her.metai.rv'){
+    bpt<-min(d$year,na.rm=TRUE)
+  } else  bpt<-bpt
+
+  d$bpt<-bpt
+  return(d)
+}
+z<-ddply(z,.(var),.fun=f)
+
+plot(seq(1,20,1),seq(1,20,1),col='white',pch=15)
+colorbar.plot(10,10,col=as.character(rdat$cl),strip=seq(-.081,0.081,length.out=20),strip.width=.05,strip.length=.75)
+dev.off()
+
+
+
+
+
+
+
+setwd(figsdir)
+pdf('herring_state_derivation_transform_v4.pdf',height=8,width=4)
+par(mfrow=c(9,2),mar=c(.75,1.5,0,0),oma=c(4,4,1,4),mgp=c(2,.45,0))
+par(mfrow=c(14,2),mar=c(.75,1.5,0,0),oma=c(4,4,1,4),mgp=c(2,.45,0))
+vr<-od$var
+for(i in 1:length(vr)){
+  d<-subset(dats,var==vr[i])
+  d<-na.omit(d)
+  ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
+  print(ylm)
+  asp<-aspline(d$year,d$y,xout=seq(min(d$year),max(d$year),length.out=1000))
+  asp<-data.frame(x=asp$x,
+                  y=asp$y)
+  plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE,xaxt='n',yaxt='n')
+  abline(h=0,col='black',lty=2,lwd=.5)
+  asp$year<-ceiling(asp$x)
+  asp$y<-ifelse(!(asp$year %in% unique(d$year)),NA,asp$y)
+  asp$year<-floor(asp$x)
+  asp$y<-ifelse(!(asp$year %in% unique(d$year)),NA,asp$y)
+
+  lines(asp$x,asp$y,col=alpha(as.character(unique(d$cl)),1),lwd=2)
+  points(d$year,d$y,col=alpha(as.character(unique(d$cl)),.3),cex=1,pch=16)
+  axis(2,at=ylm,las=1,cex.axis=.5,lwd=.1,tck=-.05,ylab='')
+  if(unique(d$var) %in% c('her.ajrat.rv','her.metai.rv')){
+    axis(1,seq(1965,2015,5),labels=FALSE,cex.axis=.5,lwd=.1,tck=-.05,xlab='')
+    axis(1,seq(1965,2015,10),cex.axis=.5,lwd=.1,tck=-.05,xlab='')
+  } else NULL
+  mod<-lm(y~year,data=d)
+  pdat<-data.frame(year=seq(min(d$year),max(d$year),length.out=1000))
+  pdat$p<-predict(mod,newdata=pdat)
+  #lines(pdat$year,pdat$p,col=alpha('black',.5),lwd=.5)
+  s<-summary(mod)
+  b<-round(s$coef[2,1],digits=2)
+  mtext(paste(unique(d$lbl),gsub(' ','',paste('(',b,')'))),bty='n',cex=.5,side=3,line=-.5,adj=1)
+}
+
+z<-data.frame(do.call('rbind',l))
+
+
+
 
 #IF BREAK IS A MINIMUM, TAKE START OF LINEAR CHANGE INSTEAD
 f<-function(d){

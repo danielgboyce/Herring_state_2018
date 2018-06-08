@@ -73,6 +73,7 @@ load('sim1.RData')
 load('sim2.RData')
 load('dats.RData')
 load('pdat.RData')
+load('pdat2.RData')
 ```
 
 
@@ -334,3 +335,16 @@ legend('topright',legend=c('Final health index (n=16)','Increasing health indice
 ```
 
 
+```{r fs6, message=FALSE,echo=FALSE,results='hide',fig.pos='H',fig.width=7.5,fig.height=6.5,fig.cap="Figure S6 | Future projected herring SSB. Black depicts observed herring SSB and red herring SSB predicted from average herring mass."}
+par(mar=c(4,4,1,1))
+plot(pdat2$year,pdat2$her.ssbc,pch=15,xlim=c(1970,2025),ylim=c(-2,2.25),las=1,xlab='Year',ylab='Herring SSB',xaxt='n')
+axis(1,seq(1970,2025,5),labels=TRUE)
+points(pdat2$year,pdat2$pmod.t6,pch=15,col='firebrick3')
+f<-function(d){
+    lines(c(d$year,d$year),c(d$pmod.t6+(1.96*d$pmod.se.t6),d$pmod.t6-(1.96*d$pmod.se.t6)),col='firebrick3')
+}
+zz<-dlply(pdat2,.(year),.fun=f)
+lines(pdat2$year,pdat2$her.ssbc,col=alpha('black',.4),lwd=2)
+lines(pdat2$year,pdat2$pmod.t6,col=alpha('firebrick3',.4),lwd=2)
+legend('topright',legend=c('Observed','Predicted'),col=c('black','firebrick3'),lwd=2,bty='n')
+```
