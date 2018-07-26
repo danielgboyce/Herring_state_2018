@@ -443,4 +443,6 @@ pdat2<-data.frame(year=seq(min(pdat$year)+6,max(pdat$year)+6,1),
  pmod.t6=slide(pdat,Var='pmod',slideBy=-6,NewVar='pmod.t6')$pmod.t6,
  pmod.se.t6=slide(pdat,Var='pmod.se',slideBy=-6,NewVar='pmod.se.t6')$pmod.se.t6)
 
+pdat<-subset(pdat,select=c('year','her.ssbc'))
+pdat2<-merge(pdat2,pdat,by=c('year'),all=TRUE)
 save(pdat2,file='C:\\Users\\sailfish\\Documents\\aalldocuments\\literature\\research\\active\\SPERA\\code\\analysis\\Herring_state_2018\\SI\\SI_data\\pdat2.RData')

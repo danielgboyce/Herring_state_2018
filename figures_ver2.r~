@@ -1113,6 +1113,74 @@ dev.off()
 
 
 
+
+
+
+
+setwd(figsdir)
+pdf('herring_state_derivation_transform_v4.pdf',height=8,width=4)
+par(mfrow=c(9,2),mar=c(.75,1.5,0,0),oma=c(4,4,1,4),mgp=c(2,.45,0))
+par(mfrow=c(14,2),mar=c(.75,1.5,0,0),oma=c(4,4,1,4),mgp=c(2,.45,0))
+vr<-od$var
+for(i in 1:length(vr)){
+  d<-subset(dats,var==vr[i])
+  d<-na.omit(d)
+  ylm<-c(floor(min(d$y,na.rm=TRUE)),ceiling(max(d$y,na.rm=TRUE)))
+  print(ylm)
+  asp<-aspline(d$year,d$y,xout=seq(min(d$year),max(d$year),length.out=1000))
+  asp<-data.frame(x=asp$x,
+                  y=asp$y)
+  plot(0,0,ylim=ylm,xlim=c(1965,2015),axes=FALSE,xaxt='n',yaxt='n')
+  abline(h=0,col='black',lty=2,lwd=.5)
+  asp$year<-ceiling(asp$x)
+  asp$y<-ifelse(!(asp$year %in% unique(d$year)),NA,asp$y)
+  asp$year<-floor(asp$x)
+  asp$y<-ifelse(!(asp$year %in% unique(d$year)),NA,asp$y)
+
+  lines(asp$x,asp$y,col=alpha(as.character(unique(d$cl)),1),lwd=2)
+  points(d$year,d$y,col=alpha(as.character(unique(d$cl)),.3),cex=1,pch=16)
+  axis(2,at=ylm,las=1,cex.axis=.5,lwd=.1,tck=-.05,ylab='')
+  if(unique(d$var) %in% c('her.ajrat.rv','her.metai.rv')){
+    axis(1,seq(1965,2015,5),labels=FALSE,cex.axis=.5,lwd=.1,tck=-.05,xlab='')
+    axis(1,seq(1965,2015,10),cex.axis=.5,lwd=.1,tck=-.05,xlab='')
+  } else NULL
+  mod<-lm(y~year,data=d)
+  pdat<-data.frame(year=seq(min(d$year),max(d$year),length.out=1000))
+  pdat$p<-predict(mod,newdata=pdat)
+  #lines(pdat$year,pdat$p,col=alpha('black',.5),lwd=.5)
+  s<-summary(mod)
+  b<-round(s$coef[2,1],digits=2)
+  mtext(paste(unique(d$lbl),gsub(' ','',paste('(',b,')'))),bty='n',cex=.5,side=3,line=-.5,adj=1)
+}
+
+z<-data.frame(do.call('rbind',l))
+
+
+
+
+#IF BREAK IS A MINIMUM, TAKE START OF LINEAR CHANGE INSTEAD
+f<-function(d){
+  pbt<-subset(d,year==unique(d$bpt))
+  if(pbt$p<=mean(d$p)){
+    bpt<-subset(d,p==max(d$p))$year[1]
+  } else { bpt<-unique(d$bpt)
+  }
+
+  if(unique(d$var)=='her.metai.rv'){
+    bpt<-min(d$year,na.rm=TRUE)
+  } else  bpt<-bpt
+
+  d$bpt<-bpt
+  return(d)
+}
+z<-ddply(z,.(var),.fun=f)
+
+plot(seq(1,20,1),seq(1,20,1),col='white',pch=15)
+colorbar.plot(10,10,col=as.character(rdat$cl),strip=seq(-.081,0.081,length.out=20),strip.width=.05,strip.length=.75)
+dev.off()
+
+
+
 ###FORMAT CHANGEPOINTS AND WRITE TO FILE
 a<-unique(subset(z,!(var %in% c('her.totwgt.rv','her.georng')),select=c('bpt','var','md')))
 a<-a[order(a$bpt,decreasing=TRUE),]

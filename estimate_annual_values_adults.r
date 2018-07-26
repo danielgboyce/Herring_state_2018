@@ -104,6 +104,71 @@ return(rvw)
 }
 
 
+library(sp)
+library(maps)
+dat<-rvwreadfun()
+data<-subset(dat,lon> -66)
+data<-subset(data,!(lon< -63 & lat>44))
+data$lon1<-round(data$lon,digits=1)
+data$lat1<-round(data$lat,digits=1)
+pdat<-unique(data.frame(lon=data$lon1,
+             lat=data$lat1,
+             day=median(data$day)))
+
+f<-function(d){
+if(dim(d)[1]>100 & length(unique(d$lat1))>10){
+d$totwgt<-d$totwgt+1
+mod<-gam(totwgt~s(lon,lat,k=50) + s(day,k=4),data=d,family=nb(link='log'))
+pdat$p<-predict(mod,newdata=pdat,type='response')-1
+#plot(pdat$lon,pdat$lat,pch=16,cex=rescale(pdat$p,newrange=c(.5,4)))
+out<-subset(pdat,p==max(pdat$p))
+out$year<-unique(d$year)
+out$n<-dim(d)[1]
+return(out)
+} else NULL
+}
+com<-ddply(data,.(year),.fun=f,.progress='text')
+com<-subset(com,p>0)
+
+
+## simple map data
+mp <- map("worldHires", plot = FALSE)
+cst <- na.omit(data.frame(lonc=mp$x, latc=mp$y))
+cst<-subset(cst,lonc> -66.5 & lonc< -57.4 & latc>40 & latc<45.4)
+cst<-subset(cst, !(lonc > -61 & latc<44))
+cst$id<-seq(1,dim(cst)[1],1)
+
+f<-function(d){
+ff<-function(dd){
+return(data.frame(lonc=dd$lonc,
+                  latc=dd$latc,
+                  dist=deg.dist(dd$lonc,dd$latc,d$lon,d$lat)))
+}
+o1<-ddply(cst,.(id),.fun=ff)
+out<-subset(o1,dist==min(o1$d))
+d$dist<-out$dist
+return(d)
+}
+odat<-ddply(com,.(year),.fun=f,.progress='text')
+
+plot(odat$year,odat$dist,pch=15)
+plot(odat$lon,odat$lat,pch=16)
+
+## container for all the nearest points matching the input
+closest.points <- matrix(0, ncol = 2, nrow = nrow(pts))
+
+for (i in 1:nrow(pts)) {
+closest.points[i, 1:2] <- xy.coast[which.min(spDistsN1(xy.coast,
+pts, longlat = TRUE)), ]
+}
+
+map(mp)
+points(pts)
+points(closest.points)
+
+
+
+
 rvwreadfunjuv<-function(){
 setwd(datadir)
 rvw<-read.csv("herring_weights_RV_survey_spera_allar.csv",header=TRUE)
