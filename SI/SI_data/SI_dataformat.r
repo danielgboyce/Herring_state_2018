@@ -270,6 +270,14 @@ library(tidyr)
 dats<-dats %>% gather(var,y,-year)
 dats<-subset(dats,year>=1965)
 
+setwd(figsdir)
+dm<-read.csv('dm.csv',header=TRUE)
+nms<-subset(dm,select=c('var','lbl.short'))
+names(nms)<-c('var','lbl')
+dats<-merge(dats,nms,by=c('var'),all.x=TRUE,all.y=FALSE)
+dats$lbl<-as.character(dats$lbl)
+dats$lbl<-ifelse(dats$var=='her.dvm.rv','Diurnal metric',dats$lbl)
+
 setwd('C:/Users/sailfish/Documents/aalldocuments/literature/research/active/SPERA/code/analysis/Herring_state_2018/SI/SI_data')
 save(dats,file='dats.RData')
 
@@ -281,7 +289,7 @@ save(dats,file='dats.RData')
 
 
 ###################################################################
-
+datadir<-"N:/cluster_2017/scratch/spera/data/finaldat_v2"
 setwd(datadir)
 load('SPERA_andata_new.RData')
 #load('SPERA_andata_spawnar.RData')
@@ -438,11 +446,74 @@ pdat<-subset(pdat,is.na(her.fmass.rv)==FALSE)
 p<-predictSE(mod2,newdata=data.frame(her.fmass.rv=pdat$her.fmass.rv),se.fit=TRUE)
 pdat$pmod<-p$fit
 pdat$pmod.se<-p$se.fit
-#pdat$pmod2<-predict(mod2,newdata=data.frame(her.fmass.rv=pdat$her.fmass.rv))
-pdat2<-data.frame(year=seq(min(pdat$year)+6,max(pdat$year)+6,1),
- pmod.t6=slide(pdat,Var='pmod',slideBy=-6,NewVar='pmod.t6')$pmod.t6,
- pmod.se.t6=slide(pdat,Var='pmod.se',slideBy=-6,NewVar='pmod.se.t6')$pmod.se.t6)
 
-pdat<-subset(pdat,select=c('year','her.ssbc'))
-pdat2<-merge(pdat2,pdat,by=c('year'),all=TRUE)
+pd<-data.frame(year=seq(1970,2025,1))
+pdat2<-merge(pd,pdat,by=c('year'),all.x=TRUE,all.y=FALSE)
+pdat2<-slide(pdat2,Var='pmod',slideBy=-6,NewVar='pmod.t6')
+pdat2<-slide(pdat2,Var='pmod.se',slideBy=-6,NewVar='pmod.se.t6')
+
+
+#pdat<-subset(pdat,select=c('year','her.ssbc'))
+#pdat2<-merge(pdat2,pdat,by=c('year'),all=TRUE)
 save(pdat2,file='C:\\Users\\sailfish\\Documents\\aalldocuments\\literature\\research\\active\\SPERA\\code\\analysis\\Herring_state_2018\\SI\\SI_data\\pdat2.RData')
+
+
+
+
+
+###############################################
+
+################################################
+datadir<-"N:/cluster_2017/scratch/spera/data/finaldat_v2"
+setwd(datadir)
+load('SPERA_andata_new.RData')
+#load('SPERA_andata_spawnar.RData')
+#load('SPERA_andata.RData')
+nms<-names(data)
+nms<-nms[grepl('her',nms)==TRUE]
+nms<-nms[grepl('\\.se',nms)==FALSE]
+nms<-nms[grepl('\\.tplus',nms)==FALSE]
+nms<-nms[grepl('\\.tmin',nms)==FALSE]
+nms<-nms[grepl('\\.cat',nms)==FALSE]
+nms<-nms[grepl('sp\\.n',nms)==FALSE]
+df<-data[,names(data) %in% c('year',nms)]
+df<-subset(df,year>=1965)
+df<-df[,!(names(df) %in% c('herjuv.prey.bof','her.jf.bof','her.preytot.bof','her.land','her.expr','herjuv.spvar','herjuv.spcv','herjuv.sprng','herjuv.spnug','her.szdiv.rv','her.dvm2.rv','herjuv.dvm2.rv','her.dur2.rv','herjuv.dur2.rv','her.durng.rv','herjuv.durng.rv','her.state','her.ssb','her.land.pct1','her.land.spdiv','her.land.sprich','herlrv.dep.bof','herlrv.spcv','herlrv.spnug','herlrv.sprng','herlrv.spvar','herjuv.dumx.rv'))]
+df$her.dvm.rv<-ifelse(df$her.dvm.rv==Inf,NA,df$her.dvm.rv)
+######
+
+#CONVERT TO SHORT FORM, EXAMINE NORMALITY, TRANSFORM USING BEST EXPONENTIAL TRANSFORM
+dfs<-df %>% gather(var,y,-year)
+dfs<-subset(dfs,is.na(y)==FALSE)
+
+#TRANSFORM VARIABLES TO OPTIMIZE NORMALITY
+f<-function(d){
+if(unique(d$var)=='her.spnug'){
+    d$yt<-d$y
+    } else { d$yt<-transformTukey(d$y,plotit=FALSE)
+         }
+  return(d)
+}
+dfs<-ddply(dfs,.(var),.fun=f)
+
+#Z-STANDARDIZE
+f<-function(d){
+  d$y<-(d$y-mean(d$y,na.rm=TRUE))/sd(d$y,na.rm=TRUE)
+  d$yt<-(d$yt-mean(d$yt,na.rm=TRUE))/sd(d$yt,na.rm=TRUE)
+  return(d)
+}
+dfs<-ddply(dfs,.(var),.fun=f)
+
+
+
+setwd(figsdir)
+dm<-read.csv('dm.csv',header=TRUE)
+nms<-subset(dm,select=c('var','lbl.short'))
+names(nms)<-c('var','lbl')
+dfs<-merge(dfs,nms,by=c('var'),all.x=TRUE,all.y=FALSE)
+dfs$lbl<-as.character(dfs$lbl)
+dfs$lbl<-ifelse(dfs$var=='her.dvm.rv','Diurnal metric',dfs$lbl)
+dfsa<-dfs
+save(dfsa,file='C:\\Users\\sailfish\\Documents\\aalldocuments\\literature\\research\\active\\SPERA\\code\\analysis\\Herring_state_2018\\SI\\SI_data\\dfsa.RData')
+
+
